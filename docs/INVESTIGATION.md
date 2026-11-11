@@ -20,7 +20,7 @@
 | --- | --- | --- |
 | univer-workspace | `dream-num/univer-workspace`，commit `0f5f0181ebafef6010667dfb8691db6559422089`（2026-11-11，`main`），**Apache-2.0** | `git clone` + `git rev-parse HEAD`；`LICENSE` |
 | 仓库要求 | Node `>=24`，包管理器 `pnpm@11.24.0`；单进程 Express + SQLite + 本地 Blob | `package.json:38-41`；`apps/workspace/docs/architecture.md:1-24,206-214` |
-| Univer SDK 基线 | `@univerjs/*`、`@univer-cli/*`、`@univerjs-pro/*` 统一精确 `1.4.0`；例外 `@univerjs-labs/* = 1.0.0-dev.0529939d`、`@univerjs/icons 1.38.0` | `apps/workspace/package.json`、`apps/cli/package.json`、`AGENTS.md:75-90` |
+| Univer SDK 基线 | `@univerjs/*`、`@univer-cli/*`、`@univerjs-pro/*` 统一精确 `1.4.0`；例外包括 `@univerjs-labs/* = 1.0.0-dev.0529939d`、`@univerjs/icons 1.38.0` 等（完整清单以上游 package.json 为准） | `apps/workspace/package.json`、`apps/cli/package.json`、`AGENTS.md:75-90` |
 | CLI | npm `univer-workspace-cli@0.6.0`（`uvw` 同一程序），本机 `pnpm dlx` 安装成功 | `apps/cli/package.json`；实测 |
 | 产品 HTTP 契约 | OpenAPI 3.1.2，`openapi.yaml` 共 92 个 path（认证、Spaces、Nodes、Resources、Blobs、Views、Trash、Permissions、Issues、Worktrees） | `apps/workspace/contracts/http/openapi.yaml` |
 | 依赖来源 | 4 个 Univer scope 指向私有 registry `insider-npm-registry.univer.work` | `.npmrc:1-4` |
@@ -96,7 +96,7 @@
 
 **MCP**：`http(s)://<workspace>/mcp`（Streamable HTTP），OAuth 或 `Authorization: Bearer <PAT>`；`?toolsets=core,files,admin,all`。
 
-**DSH**：`dsh --profile <name>`（web/headless/sdk/acp/desktop）+ `cordis.patch.yml` 按 row-id 层叠；外部编程接口：ACP（stdio JSON-RPC，支持 cancel/resume/模型选择/MCP）或 SDK JSON-RPC（无 cancel）；Office 能力需在 profile patch 中挂 `dsh-skill-office`/`dsh-tool-workspace-dependencies`/`dsh-office-to-pdf`（本机 web profile 默认未挂）。
+**DSH**：`dsh --profile <name>`（web/headless/sdk/acp/desktop）+ `cordis.patch.yml` 按 row-id 层叠；外部编程接口：ACP（stdio JSON-RPC，支持 cancel/resume/模型选择/MCP）或 SDK JSON-RPC（无 cancel）；Office 能力需在 profile patch 中挂 `dsh-skill-office`/`dsh-tool-office`/`dsh-tool-workspace-dependencies`（`dsh-office-to-pdf` 本机 web profile 已挂）。
 
 ## 4. 许可结论（摘要）
 
