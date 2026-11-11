@@ -8,4 +8,4 @@
 
 ## 状态
 
-阶段 0（仓库勘察）进行中。所有实现通过 Issue → PR 推进；未验证的外部依赖在报告中标注“待验证”。
+阶段 0（仓库勘察）完成，勘察报告见 [docs/INVESTIGATION.md](docs/INVESTIGATION.md)，许可记录见 [docs/LICENSE_NOTES.md](docs/LICENSE_NOTES.md)。所有实现通过 Issue → PR 推进；未验证的外部依赖在报告中标注“待验证”。
