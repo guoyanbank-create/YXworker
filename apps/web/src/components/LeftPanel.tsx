@@ -6,16 +6,18 @@ import type {
   ExecutionBackendId,
   FaultKind,
   Project,
+  ProviderId,
   Reference,
   StatusResponse,
   Tier,
 } from '../api/types';
-import { DATA_LEVEL_LABELS, TIER_LABELS } from '../api/types';
-import type { FaultResult } from '../ui/types';
+import { DATA_LEVEL_LABELS, PROVIDER_LABELS, PROVIDER_OPTIONS, TIER_LABELS } from '../api/types';
+import type { FaultResult, MentionSelection } from '../ui/types';
 import { RunPanel, type RunPanelProps } from './RunPanel';
 import { FaultPanel } from './FaultPanel';
-import { AtIcon, FileIcon, SimulatedIcon, SparklesIcon, UploadIcon } from './Icons';
-import { formatCount, truncate } from '../utils/format';
+import { ReferenceExplorer } from './ReferenceExplorer';
+import { AtIcon, CloseIcon, SimulatedIcon, SparklesIcon, UploadIcon } from './Icons';
+import { truncate } from '../utils/format';
 
 export interface LeftPanelProps extends RunPanelProps {
   project: Project | null;
@@ -29,13 +31,17 @@ export interface LeftPanelProps extends RunPanelProps {
   prompt: string;
   tier: Tier;
   executor: ExecutionBackendId;
+  provider: ProviderId;
+  mentions: MentionSelection[];
   generating: boolean;
   onPromptChange: (value: string) => void;
   onTierChange: (tier: Tier) => void;
   onExecutorChange: (executor: ExecutionBackendId) => void;
+  onProviderChange: (provider: ProviderId) => void;
   onGenerate: () => void;
   onFillExample: () => void;
-  onInsertReference: (reference: Reference) => void;
+  onInsertMention: (mention: MentionSelection) => void;
+  onRemoveMention: (mention: MentionSelection) => void;
   onUploadReference: (file: File) => void;
   onSelectProject: (projectId: string) => void;
   onRefreshStatus: () => void;
@@ -63,6 +69,8 @@ export function LeftPanel(props: LeftPanelProps) {
     prompt,
     tier,
     executor,
+    provider,
+    mentions,
     generating,
     activeRun,
     activeKind,
@@ -75,9 +83,11 @@ export function LeftPanel(props: LeftPanelProps) {
     onPromptChange,
     onTierChange,
     onExecutorChange,
+    onProviderChange,
     onGenerate,
     onFillExample,
-    onInsertReference,
+    onInsertMention,
+    onRemoveMention,
     onUploadReference,
     onSelectProject,
     onRefreshStatus,
@@ -89,7 +99,10 @@ export function LeftPanel(props: LeftPanelProps) {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const providerConfigured = providerConfiguredFlag(status);
-  const providerWarning = status !== null && providerConfigured === false && executor === 'dsh';
+  const currentModel = status?.current ?? null;
+  const realModelConfigured = currentModel?.realModelConfigured ?? providerConfigured;
+  const providerWarning = status !== null && realModelConfigured === false && executor === 'dsh';
+  const effectiveProvider: ProviderId = executor === 'mock' ? 'mock' : provider;
   const backends = status?.backends ?? [];
   const backendById = new Map(backends.map((backend) => [backend.id, backend]));
   const dataLevel: DataLevel = project?.dataLevel ?? 'internal';
@@ -191,40 +204,14 @@ export function LeftPanel(props: LeftPanelProps) {
             </button>
           </div>
         </div>
-        {references.length === 0 ? (
-          <p className="section-empty">暂无引用资料。上传历史方案或技术说明后，可在对话中用 @ 引用。</p>
-        ) : (
-          <ul className="reference-list" data-testid="reference-list">
-            {references.map((reference) => (
-              <li key={reference.id} className="reference-item" data-testid="reference-item">
-                <div className="reference-main">
-                  <div className="reference-title">
-                    <FileIcon size={13} />
-                    <span title={reference.title}>{reference.title}</span>
-                  </div>
-                  <div className="reference-meta">
-                    <span className="reference-kind">{reference.kind.toUpperCase()}</span>
-                    <span>{formatCount(reference.charCount)} 字</span>
-                  </div>
-                  <p className="reference-excerpt" title={reference.excerpt}>
-                    {truncate(reference.excerpt, 64)}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-tiny"
-                  data-testid="btn-insert-ref"
-                  title={`在对话中 @ 引用「${reference.title}」`}
-                  onClick={() => onInsertReference(reference)}
-                >
-                  <AtIcon size={12} />
-                  插入
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {referencesError ? <p className="inline-error">引用加载失败：{referencesError}</p> : null}
+        <ReferenceExplorer
+          projectId={project?.id ?? null}
+          references={references}
+          referencesError={referencesError}
+          selectedSectionIds={mentions.flatMap((mention) => (mention.sectionId ? [mention.sectionId] : []))}
+          selectedReferenceIds={mentions.map((mention) => mention.referenceId)}
+          onInsertMention={onInsertMention}
+        />
       </section>
 
       {/* AI 对话 / 生成 */}
@@ -243,8 +230,35 @@ export function LeftPanel(props: LeftPanelProps) {
           placeholder="例：引用历史方案与技术说明，第三章给出 5 条修改建议；仅出建议"
           onChange={(event) => onPromptChange(event.target.value)}
         />
+        {mentions.length > 0 ? (
+          <div className="mention-chips" data-testid="mention-chips">
+            <span className="mention-chips-label">
+              已选引用 {mentions.length} 项（随生成发送 referenceIds/referenceSectionIds）
+            </span>
+            <ul>
+              {mentions.map((mention) => (
+                <li key={mention.sectionId ?? mention.referenceId} className="mention-chip" data-testid="mention-chip">
+                  <AtIcon size={11} />
+                  <span className="mention-chip-text" title={`${mention.referenceTitle}${mention.locator ? ` · ${mention.locator}` : ''}`}>
+                    {truncate(mention.referenceTitle, 18)}
+                    {mention.locator ? ` · ${truncate(mention.locator, 22)}` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    className="mention-chip-remove"
+                    aria-label="移除引用"
+                    data-testid="btn-remove-mention"
+                    onClick={() => onRemoveMention(mention)}
+                  >
+                    <CloseIcon size={10} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="composer-hint">
-          可 @ 引用左侧资料；AI 只提交建议，不直接改正文。生成 5 条建议。
+          可 @ 引用左侧资料（可展开小节或搜索定位）；AI 只提交建议，不直接改正文。生成 5 条建议。
         </div>
         <div className="composer-row">
           <label className="field">
@@ -277,11 +291,30 @@ export function LeftPanel(props: LeftPanelProps) {
               ))}
             </select>
           </label>
+          <label className="field">
+            <span className="field-label">模型提供方</span>
+            <select
+              className="select"
+              data-testid="provider-select"
+              value={effectiveProvider}
+              disabled={executor === 'mock'}
+              title={executor === 'mock' ? '模拟执行器强制使用 Mock provider' : '选择真实模型提供方（随 generate/discuss 发送）'}
+              onChange={(event) => onProviderChange(event.target.value as ProviderId)}
+            >
+              {PROVIDER_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        {executor === 'mock' ? (
+        {effectiveProvider === 'mock' ? (
           <div className="mock-note" data-testid="mock-note">
             <SimulatedIcon size={14} />
-            当前为<strong>模拟执行器</strong>：离线确定性生成 5 条建议，用于本机演示，不代表真实模型输出。
+            当前为<strong>模拟（Mock）</strong>
+            {executor === 'mock' ? '执行器' : 'provider'}：离线确定性生成 5 条建议，用于本机演示，
+            <strong>不代表真实模型输出</strong>。
           </div>
         ) : null}
         {providerWarning ? (
@@ -322,6 +355,46 @@ export function LeftPanel(props: LeftPanelProps) {
         ) : (
           <>
             <div className="status-group">
+              <span className="status-group-label">当前模型链路</span>
+              {currentModel ? (
+                <div className="current-model" data-testid="current-model" data-mock={currentModel.providerId === 'mock' ? 'true' : 'false'}>
+                  <div className="current-model-line">
+                    <span className="current-model-provider">
+                      {currentModel.providerLabel || PROVIDER_LABELS[currentModel.providerId as ProviderId] || currentModel.providerId}
+                    </span>
+                    {currentModel.providerId === 'mock' ? (
+                      <span className="pill pill-mock" data-testid="current-model-mock">
+                        <SimulatedIcon size={11} />
+                        模拟
+                      </span>
+                    ) : null}
+                    <span className={`pill ${currentModel.realModelConfigured ? 'status-ok' : 'status-danger'}`}>
+                      {currentModel.realModelConfigured ? '真实模型凭据已配置' : '真实模型未配置'}
+                    </span>
+                  </div>
+                  <div className="current-model-meta">
+                    <span data-testid="current-model-name" title="模型">
+                      模型 <code>{currentModel.model || '—'}</code>
+                    </span>
+                    <span data-testid="current-model-timeout" title="模型超时">
+                      模型超时 {currentModel.modelTimeoutMs} ms
+                    </span>
+                    <span data-testid="current-model-watchdog" title="看门狗超时">
+                      看门狗 {currentModel.watchdogTimeoutMs} ms
+                    </span>
+                  </div>
+                  <div className="current-model-meta">
+                    <span>执行器 {currentModel.backend}</span>
+                    <span>提供方 {currentModel.providerId}</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="section-empty" data-testid="current-model-missing">
+                  服务端尚未返回 current（P1 扩展接口未就绪）；生成时仍会按所选 provider 发送。
+                </p>
+              )}
+            </div>
+            <div className="status-group">
               <span className="status-group-label">远端模型提供方</span>
               {status.providers.length === 0 ? (
                 <p className="section-empty">无可用提供方。</p>
@@ -331,6 +404,11 @@ export function LeftPanel(props: LeftPanelProps) {
                     <li key={provider.id} className="status-item">
                       <span className="status-item-name" title={provider.note}>
                         {provider.label}
+                        {provider.current ? (
+                          <span className="pill pill-current" data-testid="provider-current-badge">
+                            当前
+                          </span>
+                        ) : null}
                       </span>
                       <span className={`pill ${provider.configured ? 'status-ok' : 'status-muted'}`}>
                         {provider.configured ? '已配置' : '未配置'}

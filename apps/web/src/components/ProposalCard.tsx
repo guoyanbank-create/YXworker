@@ -3,15 +3,22 @@ import { useState } from 'react';
 import type { Citation, Proposal, ProposalStatus } from '../api/types';
 import { PROPOSAL_STATUS_LABELS } from '../api/types';
 import { backendLabel } from '../utils/format';
-import { CheckIcon, CloseIcon, LocateIcon, QuoteIcon, SimulatedIcon } from './Icons';
+import { AlertIcon, CheckIcon, CloseIcon, LocateIcon, QuoteIcon, SimulatedIcon } from './Icons';
 
 export interface ProposalCardProps {
   proposal: Proposal;
   busy: boolean;
+  /** P2：批量采纳多选（仅待审/修订中可勾选）。 */
+  selected: boolean;
+  onToggleSelect: (proposal: Proposal) => void;
   onAccept: (proposal: Proposal) => void;
   onReject: (proposal: Proposal) => void;
   onDiscuss: (proposal: Proposal, message: string) => void;
   onLocate: (proposal: Proposal) => void;
+  /** P1：点开引用来源弹窗。 */
+  onOpenCitation: (citation: Citation) => void;
+  /** P1：定位兜底提示（如“段落已变化”）。 */
+  locateNotice?: string | null;
 }
 
 const STATUS_CLASS: Record<ProposalStatus, string> = {
@@ -26,15 +33,25 @@ function isActionable(status: ProposalStatus): boolean {
   return status === 'proposed' || status === 'revised';
 }
 
-function CitationItem({ citation }: { citation: Citation }) {
+function CitationItem({ citation, onOpen }: { citation: Citation; onOpen: (citation: Citation) => void }) {
   return (
     <li className="citation" data-testid="proposal-citation">
-      <div className="citation-head">
-        <QuoteIcon size={12} />
-        <span className="citation-title">{citation.title}</span>
-        <span className="citation-locator">{citation.locator}</span>
-      </div>
-      <p className="citation-excerpt">{citation.excerpt}</p>
+      <button
+        type="button"
+        className="citation-button"
+        data-testid="citation-open"
+        data-reference-id={citation.referenceId}
+        title="打开引用来源（定位 + 高亮摘录）"
+        onClick={() => onOpen(citation)}
+      >
+        <span className="citation-head">
+          <QuoteIcon size={12} />
+          <span className="citation-title">{citation.title}</span>
+          <span className="citation-locator">{citation.locator}</span>
+          <span className="citation-open-hint">打开来源</span>
+        </span>
+        <span className="citation-excerpt">{citation.excerpt}</span>
+      </button>
     </li>
   );
 }
@@ -42,10 +59,14 @@ function CitationItem({ citation }: { citation: Citation }) {
 export function ProposalCard({
   proposal,
   busy,
+  selected,
+  onToggleSelect,
   onAccept,
   onReject,
   onDiscuss,
   onLocate,
+  onOpenCitation,
+  locateNotice,
 }: ProposalCardProps) {
   const [discussOpen, setDiscussOpen] = useState(false);
   const [discussText, setDiscussText] = useState('');
@@ -63,6 +84,17 @@ export function ProposalCard({
       data-status={proposal.status}
     >
       <header className="proposal-head">
+        {actionable ? (
+          <label className="proposal-select" title="选择该建议以批量采纳">
+            <input
+              type="checkbox"
+              data-testid="batch-select"
+              data-proposal-id={proposal.id}
+              checked={selected}
+              onChange={() => onToggleSelect(proposal)}
+            />
+          </label>
+        ) : null}
         <div className="proposal-scope">
           <span className="proposal-chapter" title={proposal.chapterTitle}>
             {proposal.chapterTitle || '（未命名章节）'}
@@ -99,7 +131,11 @@ export function ProposalCard({
           <span className="proposal-field-label">引用根据</span>
           <ul>
             {proposal.citations.map((citation, index) => (
-              <CitationItem key={`${citation.referenceId}-${index}`} citation={citation} />
+              <CitationItem
+                key={`${citation.referenceId}-${index}`}
+                citation={citation}
+                onOpen={onOpenCitation}
+              />
             ))}
           </ul>
         </div>
@@ -179,6 +215,13 @@ export function ProposalCard({
           定位
         </button>
       </footer>
+
+      {locateNotice ? (
+        <p className="proposal-locate-note" data-testid="proposal-locate-note">
+          <AlertIcon size={12} />
+          {locateNotice}
+        </p>
+      ) : null}
 
       {discussOpen ? (
         <div className="discuss-box">

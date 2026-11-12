@@ -27,3 +27,15 @@ export interface FaultResult {
 }
 
 export type RunKind = 'generate' | 'discuss' | 'fault';
+
+/** 中心工作区视图（P2 面板与正文编辑共享中心区）。 */
+export type CenterView = 'document' | 'diagrams' | 'features' | 'impact';
+
+/** 对话中已选中的引用/小节（随 generate 发送 referenceIds/referenceSectionIds）。 */
+export interface MentionSelection {
+  referenceId: string;
+  referenceTitle: string;
+  /** 具体小节；null 表示整份引用。 */
+  sectionId: string | null;
+  locator: string | null;
+}

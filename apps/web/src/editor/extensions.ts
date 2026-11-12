@@ -81,8 +81,21 @@ export function normalizeParagraphIds(editor: Editor): boolean {
   return true;
 }
 
-/** 定位高亮：用 ProseMirror 装饰（decoration）标记目标段落，不修改文档 JSON、不触发自动保存。 */
-const locatePluginKey = new PluginKey<{ paragraphId: string | null }>('locateHighlight');
+/**
+ * 批注定位高亮目标（P1-2 闭环）：
+ * - paragraphId：目标段落锚点，始终按 id 查找（不修改正文）；
+ * - from/to：段内选中范围的绝对文档位置，用于高亮“选中范围”（可选）；
+ * - conflict：冲突提案用红色样式区分。
+ */
+export interface LocateTarget {
+  paragraphId: string;
+  from?: number | null;
+  to?: number | null;
+  conflict?: boolean;
+}
+
+/** 定位高亮：用 ProseMirror 装饰（decoration）标记目标段落/范围，不修改文档 JSON、不触发自动保存。 */
+const locatePluginKey = new PluginKey<LocateTarget | null>('locateHighlight');
 
 export const LocateHighlight = Extension.create({
   name: 'locateHighlight',
@@ -92,25 +105,50 @@ export const LocateHighlight = Extension.create({
       new Plugin({
         key: locatePluginKey,
         state: {
-          init: (): { paragraphId: string | null } => ({ paragraphId: null }),
+          init: (): LocateTarget | null => null,
           apply(tr, value) {
-            const meta = tr.getMeta(locatePluginKey) as string | null | undefined;
-            if (meta !== undefined) return { paragraphId: meta };
+            const meta = tr.getMeta(locatePluginKey) as LocateTarget | null | undefined;
+            if (meta !== undefined) return meta;
             return value;
           },
         },
         props: {
           decorations(state) {
-            const id = locatePluginKey.getState(state)?.paragraphId;
-            if (!id) return null;
-            const decorations: Decoration[] = [];
+            const target = locatePluginKey.getState(state);
+            if (!target) return null;
+            let foundPos = -1;
+            let foundSize = 0;
             state.doc.descendants((node, pos) => {
-              if (node.attrs.paragraphId === id) {
-                decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: 'is-located' }));
+              if (node.attrs.paragraphId === target.paragraphId) {
+                foundPos = pos;
+                foundSize = node.nodeSize;
                 return false;
               }
               return true;
             });
+            if (foundPos < 0) return null;
+            const decorations: Decoration[] = [
+              Decoration.node(foundPos, foundPos + foundSize, {
+                class: target.conflict ? 'is-located is-located-conflict' : 'is-located',
+                'data-testid': 'proposal-highlight',
+                'data-conflict': target.conflict ? 'true' : 'false',
+              }),
+            ];
+            if (target.from != null && target.to != null && target.to > target.from) {
+              const min = foundPos + 1;
+              const max = foundPos + foundSize - 1;
+              const from = Math.max(min, Math.min(target.from, max));
+              const to = Math.max(from, Math.min(target.to, max));
+              if (to > from) {
+                decorations.push(
+                  Decoration.inline(from, to, {
+                    class: target.conflict
+                      ? 'is-located-range is-located-conflict'
+                      : 'is-located-range',
+                  }),
+                );
+              }
+            }
             return DecorationSet.create(state.doc, decorations);
           },
         },
@@ -119,10 +157,10 @@ export const LocateHighlight = Extension.create({
   },
 });
 
-/** 高亮指定段落（传 null 清除）。纯装饰事务，不改变正文，不触发保存。 */
-export function setLocateHighlight(editor: Editor, paragraphId: string | null): void {
+/** 高亮指定段落/范围（传 null 清除）。纯装饰事务，不改变正文，不触发保存。 */
+export function setLocateHighlight(editor: Editor, target: LocateTarget | null): void {
   if (editor.isDestroyed) return;
-  editor.view.dispatch(editor.state.tr.setMeta(locatePluginKey, paragraphId));
+  editor.view.dispatch(editor.state.tr.setMeta(locatePluginKey, target));
 }
 
 /** 编辑器扩展集合（StarterKit 已含 Link/Underline，这里显式替换为配置化扩展）。 */

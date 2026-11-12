@@ -1,6 +1,7 @@
 /** 版本历史弹窗：列表、创建命名版本、只读查看、回退确认、导出指定版本。 */
 import { useEffect, useMemo, useState } from 'react';
 import type { Version } from '../api/types';
+import { TEMPLATE_OPTIONS } from '../api/types';
 import { ReadonlyEditor } from '../editor/EditorPane';
 import { DownloadIcon, HistoryIcon, PlusIcon, RefreshIcon, UndoIcon } from './Icons';
 import { formatDateTime } from '../utils/format';
@@ -13,11 +14,13 @@ export interface VersionDialogProps {
   loading: boolean;
   busy: boolean;
   error: string | null;
+  exportTemplate: 'gov' | 'tech';
   onClose: () => void;
   onRefresh: () => void;
   onCreate: (name: string) => void;
   onRestore: (versionId: string) => void;
-  onExportVersion: (versionId: string) => void;
+  onExportVersion: (versionId: string, template: 'gov' | 'tech') => void;
+  onChangeExportTemplate: (template: 'gov' | 'tech') => void;
 }
 
 export function VersionDialog({
@@ -27,11 +30,13 @@ export function VersionDialog({
   loading,
   busy,
   error,
+  exportTemplate,
   onClose,
   onRefresh,
   onCreate,
   onRestore,
   onExportVersion,
+  onChangeExportTemplate,
 }: VersionDialogProps) {
   const [name, setName] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -157,12 +162,25 @@ export function VersionDialog({
                     </p>
                   </div>
                   <div className="version-preview-actions">
+                    <select
+                      className="select select-xs"
+                      data-testid="template-select-version"
+                      title="导出模板（只影响版式，不改正文）"
+                      value={exportTemplate}
+                      onChange={(event) => onChangeExportTemplate(event.target.value as 'gov' | 'tech')}
+                    >
+                      {TEMPLATE_OPTIONS.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.label}
+                        </option>
+                      ))}
+                    </select>
                     <button
                       type="button"
                       className="btn btn-ghost btn-xs"
                       data-testid="btn-version-export"
                       disabled={busy}
-                      onClick={() => onExportVersion(selected.id)}
+                      onClick={() => onExportVersion(selected.id, exportTemplate)}
                     >
                       <DownloadIcon size={13} />
                       导出该版本
