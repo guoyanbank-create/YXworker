@@ -12,6 +12,9 @@ import { createExportRouter } from './routes/export.js';
 import { createProposalsRouter } from './routes/proposals.js';
 import { createRunsRouter } from './routes/runs.js';
 import { createStatusRouter } from './routes/status.js';
+import { createDiagramsRouter } from './routes/diagrams.js';
+import { createFeaturesRouter } from './routes/features.js';
+import { createImpactRouter } from './routes/impact.js';
 
 export interface AppDeps {
   db: Db;
@@ -48,6 +51,9 @@ export function createApp(deps: AppDeps): express.Express {
   app.use('/api', createExportRouter(deps));
   app.use('/api', createProposalsRouter(deps));
   app.use('/api', createRunsRouter(deps));
+  app.use('/api', createDiagramsRouter(deps));
+  app.use('/api', createFeaturesRouter(deps));
+  app.use('/api', createImpactRouter(deps));
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: { code: 'not_found', message: 'API 路由不存在' } });

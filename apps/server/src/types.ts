@@ -205,3 +205,114 @@ export interface StatusResponse {
   features: Record<string, boolean>;
   limits: Record<string, string>;
 }
+
+/* ============================ P1/P2 类型扩展 ============================ */
+
+/** 引用资料的逻辑小节/段落定位（@ 引用与来源打开使用）。 */
+export interface ReferenceSection {
+  id: string;
+  referenceId: string;
+  /** 人类可读定位，如「第 2 节 试点范围 / 第 3 段」。 */
+  locator: string;
+  sectionTitle: string;
+  paragraphIndex: number;
+  /** 片段（≤300 字），用于检索结果与卡片展示。 */
+  excerpt: string;
+  /** 该段完整文本，用于“打开来源”在原文中定位/高亮。 */
+  content: string;
+  createdAt: string;
+}
+
+/** @ 检索结果：引用 + locator + excerpt。 */
+export interface ReferenceLocatorResult {
+  referenceId: string;
+  referenceTitle: string;
+  sectionId: string;
+  locator: string;
+  excerpt: string;
+}
+
+/** Mermaid 图表（P2）：源码 + 版本绑定。 */
+export interface Diagram {
+  id: string;
+  projectId: string;
+  title: string;
+  kind: string;
+  source: string;
+  description: string;
+  documentId: string | null;
+  /** 绑定的文档 revision（保存/绑定时记录）。 */
+  documentRevision: number | null;
+  /** 绑定的命名版本名（如 V1.0/V1.1），可为空。 */
+  versionName: string | null;
+  /** 关联章节标题（ImpactPlan 用）。 */
+  chapterRef: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 功能清单条目（P2 FeatureSpec）。 */
+export type FeatureStatus = 'planned' | 'in_progress' | 'done' | 'dropped';
+
+export interface FeatureSpec {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  status: FeatureStatus;
+  priority: 'P0' | 'P1' | 'P2';
+  chapterRef: string | null;
+  diagramId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImpactAffectedChapter {
+  chapterIndex: number;
+  chapterTitle: string;
+  paragraphIds: string[];
+  paragraphCount: number;
+}
+
+export interface ImpactAffectedDiagrams {
+  diagram: Diagram;
+  reason: string;
+}
+
+export interface ImpactAffectedFeatures {
+  feature: FeatureSpec;
+  reason: string;
+}
+
+export interface ImpactPlan {
+  id: string;
+  documentId: string;
+  baseRevision: number;
+  trigger: string;
+  affected: {
+    chapters: ImpactAffectedChapter[];
+    proposals: Proposal[];
+    diagrams: ImpactAffectedDiagrams[];
+    featureSpecs: ImpactAffectedFeatures[];
+  };
+  createdAt: string;
+  executedAt: string | null;
+}
+
+export interface BatchAcceptItemResult {
+  id: string;
+  ok: boolean;
+  status: ProposalStatus | null;
+  error: string | null;
+}
+
+export interface BatchAcceptResult {
+  results: BatchAcceptItemResult[];
+  document: Document;
+}
+
+export interface DocumentTemplateInfo {
+  id: 'gov' | 'tech';
+  name: string;
+  description: string;
+}

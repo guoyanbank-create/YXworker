@@ -4,7 +4,7 @@ import type { Express } from 'express';
 import { createApp } from '../src/app.js';
 import { config } from '../src/config.js';
 import { openDb, type Db } from '../src/db.js';
-import { ensureSeed } from '../src/seed/seed.js';
+import { ensureSeed, ensureSeedExtras } from '../src/seed/seed.js';
 
 export interface TestContext {
   db: Db;
@@ -16,6 +16,7 @@ export interface TestContext {
 export function makeTestContext(options: { seed?: boolean } = {}): TestContext {
   const db = openDb(':memory:');
   const seeded = options.seed === false ? null : ensureSeed(db);
+  if (seeded) ensureSeedExtras(db);
   const testConfig = {
     ...config,
     // 测试永不访问真实模型；凭据置空，避免误用本机凭据。

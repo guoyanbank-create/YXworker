@@ -104,3 +104,86 @@ export const DEMO_REFERENCES: DemoReferenceSeed[] = [
 每次模型调用记录 runId、任务类型、选中的执行器与提供方、模型、耗时、token 用量、重试原因与错误码；日志默认不保存原文与密钥。`,
   },
 ];
+
+/** P2 演示图表（Mermaid 源码；渲染在浏览器完成，服务端只存源码）。 */
+export interface DemoDiagramSeed {
+  title: string;
+  kind: string;
+  source: string;
+  description: string;
+  chapterRef: string;
+}
+
+export const DEMO_DIAGRAMS: DemoDiagramSeed[] = [
+  {
+    title: '智能问答总体链路',
+    kind: 'flowchart',
+    description: '从用户入口到回答/转人工的端到端链路，对应方案第三章功能拆解。',
+    chapterRef: '第三章 功能拆解与实施路径',
+    source: `flowchart LR
+  A[用户入口] --> B[关键词召回]
+  A --> C[向量召回]
+  B --> D[重排]
+  C --> D
+  D --> E{置信度达标?}
+  E -- 是 --> F[模型生成回答]
+  F --> G[引用与审核]
+  G --> H[返回用户]
+  E -- 否 --> I[转人工坐席]`,
+  },
+  {
+    title: '系统架构与数据边界',
+    kind: 'architecture',
+    description: '工作台、服务端、知识库与模型网关的边界，对应第三章 3.1 与数据分级要求。',
+    chapterRef: '第三章 功能拆解与实施路径',
+    source: `flowchart TB
+  subgraph 本机
+    UI[单页工作台] --> API[服务端 API]
+    API --> DB[(SQLite 文档/提案)]
+  end
+  API --> GW[模型网关 OpenAI 兼容]
+  API --> KB[(知识库检索)]
+  GW -. 仅 public/internal .-> EXT[[外部模型]]
+  DB -. secret 阻断 .-> EXT`,
+  },
+];
+
+/** P2 演示功能清单条目。 */
+export interface DemoFeatureSeed {
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  chapterRef: string;
+}
+
+export const DEMO_FEATURES: DemoFeatureSeed[] = [
+  {
+    title: '智能问答入口与场景分流',
+    description: '按办事咨询/材料准备/进度查询三类场景分流，配置独立提示词与转人工阈值。',
+    status: 'in_progress',
+    priority: 'P0',
+    chapterRef: '第三章 功能拆解与实施路径',
+  },
+  {
+    title: '知识库三层结构与检索重排',
+    description: '政策原文—事项指南—问答对三层组织；关键词+向量召回后重排，引用可定位。',
+    status: 'planned',
+    priority: 'P0',
+    chapterRef: '第三章 功能拆解与实施路径',
+  },
+  {
+    title: '引用与逐条审阅闭环',
+    description: 'AI 只提交建议，人工逐条采纳/拒绝/继续讨论，冲突禁止覆盖，保留版本。',
+    status: 'done',
+    priority: 'P0',
+    chapterRef: '第三章 功能拆解与实施路径',
+  },
+  {
+    title: '灰度发布与回滚预案',
+    description: '按 10%、30%、100% 三档灰度，异常可一键回滚；运行指标按周复盘。',
+    status: 'planned',
+    priority: 'P1',
+    chapterRef: '第四章 预期成效与保障措施',
+  },
+];

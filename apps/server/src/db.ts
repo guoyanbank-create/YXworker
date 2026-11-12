@@ -120,6 +120,63 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 CREATE INDEX IF NOT EXISTS idx_runs_document ON runs(document_id);
 CREATE INDEX IF NOT EXISTS idx_runs_project ON runs(project_id);
+
+-- P1：引用小节/段落定位（@ 引用、来源打开、检索）
+CREATE TABLE IF NOT EXISTS reference_sections (
+  id TEXT PRIMARY KEY,
+  reference_id TEXT NOT NULL,
+  locator TEXT NOT NULL,
+  section_title TEXT NOT NULL,
+  paragraph_index INTEGER NOT NULL,
+  excerpt TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_reference_sections_ref ON reference_sections(reference_id);
+
+-- P2：Mermaid 图表（源码 + 文档版本绑定）
+CREATE TABLE IF NOT EXISTS diagrams (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'flowchart',
+  source TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  document_id TEXT,
+  document_revision INTEGER,
+  version_name TEXT,
+  chapter_ref TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_diagrams_project ON diagrams(project_id);
+
+-- P2：功能清单条目（FeatureSpec）
+CREATE TABLE IF NOT EXISTS feature_specs (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'planned',
+  priority TEXT NOT NULL DEFAULT 'P1',
+  chapter_ref TEXT,
+  diagram_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_feature_specs_project ON feature_specs(project_id);
+
+-- P2：ImpactPlan（先展示影响再逐项执行）
+CREATE TABLE IF NOT EXISTS impact_plans (
+  id TEXT PRIMARY KEY,
+  document_id TEXT NOT NULL,
+  base_revision INTEGER NOT NULL,
+  trigger TEXT NOT NULL,
+  affected_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  executed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_impact_plans_document ON impact_plans(document_id);
 `;
 
 export function openDb(file: string): Db {
