@@ -59,14 +59,21 @@ export const ParagraphIdAttribute = Extension.create({
 export function normalizeParagraphIds(editor: Editor): boolean {
   if (editor.isDestroyed) return false;
   const { doc, tr } = editor.state;
-  const missing: Array<{ pos: number; attrs: Record<string, unknown> }> = [];
+  const seen = new Set<string>();
+  const updates: Array<{ pos: number; attrs: Record<string, unknown> }> = [];
   doc.descendants((node, pos) => {
     if (node.type.name !== 'paragraph' && node.type.name !== 'heading') return;
-    if (node.attrs.paragraphId) return;
-    missing.push({ pos, attrs: { ...node.attrs, paragraphId: createParagraphId() } });
+    const currentId = node.attrs.paragraphId;
+    // 缺失 id 需要补；重复 id 必须重新分配（TipTap 在 splitBlock 时会把 attrs 复制给新块，
+    // 若不修正会出现两个同 id 的段落锚点，服务端的 baseHash/冲突校验将无法定位）。
+    if (typeof currentId === 'string' && currentId.length > 0 && !seen.has(currentId)) {
+      seen.add(currentId);
+      return;
+    }
+    updates.push({ pos, attrs: { ...node.attrs, paragraphId: createParagraphId() } });
   });
-  if (missing.length === 0) return false;
-  for (const item of missing) {
+  if (updates.length === 0) return false;
+  for (const item of updates) {
     tr.setNodeMarkup(item.pos, undefined, item.attrs);
   }
   tr.setMeta('addToHistory', false);
