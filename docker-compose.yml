@@ -1,0 +1,16 @@
+# 可选：本机容器部署。模型凭据以只读方式挂载，不写入镜像。
+services:
+  yxworker:
+    build: .
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      YXWORKER_FAULT_INJECTION: "1"
+      YXWORKER_CREDENTIALS_FILE: /run/secrets/yxworker-credentials.env
+    volumes:
+      - yxworker-data:/app/.data
+      - ${HOME}/.config/yxworker/credentials.env:/run/secrets/yxworker-credentials.env:ro
+    restart: unless-stopped
+
+volumes:
+  yxworker-data:

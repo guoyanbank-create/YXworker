@@ -1,0 +1,152 @@
+{
+  "baseUrl": "http://127.0.0.1:8799",
+  "ranAt": "2026-11-12T00:47:34.433Z",
+  "results": [
+    {
+      "item": "启动方式",
+      "ok": true,
+      "detail": "node apps/server/dist/index.js 监听 http://127.0.0.1:8799（临时数据目录）"
+    },
+    {
+      "item": "§11.1 项目存在",
+      "ok": true,
+      "detail": "projects=1"
+    },
+    {
+      "item": "§11.1 四章节方案",
+      "ok": true,
+      "detail": "chapters=第一章 项目背景与目标 | 第二章 现状与问题诊断 | 第三章 功能拆解与实施路径 | 第四章 预期成效与保障措施"
+    },
+    {
+      "item": "§11.1 引用资料",
+      "ok": true,
+      "detail": "≥2 份引用"
+    },
+    {
+      "item": "§11.2 真实模型生成运行成功",
+      "ok": true,
+      "detail": "status=succeeded backend=dsh provider=openai-compatible model=deepseek-flash latency=27959ms tokens=1715/6045 events=7"
+    },
+    {
+      "item": "§11.2 真实模型 provenance（非 Mock）",
+      "ok": true,
+      "detail": "provider=openai-compatible model=deepseek-flash backend=dsh latency=27959ms tokens=1715/6045 proposalIds=prop_14b6bc4fa28f4a2f93c9,prop_43db98662e9e4a9da5cb,prop_520c3cc153ce42c99f9b,prop_63d08d276e7d4fa9865e,prop_f44cc0d2cf714ad9bda0"
+    },
+    {
+      "item": "§11.2 五条建议卡片数据",
+      "ok": true,
+      "detail": "proposals=5 chapter3=5 citations=1,1,1,2,1"
+    },
+    {
+      "item": "§11.3 采纳两条",
+      "ok": true,
+      "detail": "status=200/200"
+    },
+    {
+      "item": "§11.3 只写入采纳内容",
+      "ok": true,
+      "detail": "changed=p_013,p_015 expected=p_013,p_015 revision 1→3"
+    },
+    {
+      "item": "§11.3 采纳后文本等于建议文本",
+      "ok": true,
+      "detail": "newText 已读回一致"
+    },
+    {
+      "item": "§11.3 拒绝后原文不动",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "item": "§11.3 继续讨论只更新该条",
+      "ok": true,
+      "detail": "run=succeeded discussionCount=1 revision不变=3"
+    },
+    {
+      "item": "§11.3 其余保持待审",
+      "ok": true,
+      "detail": "status=proposed"
+    },
+    {
+      "item": "§11.4 人工编辑触发冲突",
+      "ok": true,
+      "detail": "conflictedProposals=prop_f44cc0d2cf714ad9bda0"
+    },
+    {
+      "item": "§11.4 冲突提案禁止覆盖",
+      "ok": true,
+      "detail": "accept status=409 code=proposal_state_invalid revision不变"
+    },
+    {
+      "item": "§11.5 命名版本 V1.1",
+      "ok": true,
+      "detail": "versions=V1.0,V1.1"
+    },
+    {
+      "item": "§11.5 回退到 V1.0",
+      "ok": true,
+      "detail": "revision=5"
+    },
+    {
+      "item": "§11.5 导出 DOCX",
+      "ok": true,
+      "detail": "bytes=11472 zip=true"
+    },
+    {
+      "item": "§11.5 DOCX 可渲染（LibreOffice 引擎）",
+      "ok": true,
+      "detail": "pages=2 missingFonts=2"
+    },
+    {
+      "item": "§11.1 DOCX 引用上传与提取",
+      "ok": true,
+      "detail": "status=201 charCount=1011"
+    },
+    {
+      "item": "§11.6 执行器状态（DSH 默认可用 / Codex 不要求）",
+      "ok": true,
+      "detail": "dsh=true codex=false (本机未安装/未配置 Codex（无 ~/.codex），P0 不依赖 Codex，默认使用 DSH 执行器。)"
+    },
+    {
+      "item": "§11.6 模拟执行器兜底（明确标记模拟）",
+      "ok": true,
+      "detail": "mock proposals=5"
+    },
+    {
+      "item": "§11.7 模拟 429",
+      "ok": true,
+      "detail": "run=failed code=model_rate_limited"
+    },
+    {
+      "item": "§11.7 模拟 500",
+      "ok": true,
+      "detail": "run=failed code=model_unavailable"
+    },
+    {
+      "item": "§11.7 模拟断网",
+      "ok": true,
+      "detail": "run=failed code=model_unavailable"
+    },
+    {
+      "item": "§11.7 模拟超时（run 不得悬挂）",
+      "ok": true,
+      "detail": "run=failed code=model_timeout"
+    },
+    {
+      "item": "§11.7 数据分级外发阻断",
+      "ok": true,
+      "detail": "HTTP 403 code=data_policy_blocked"
+    },
+    {
+      "item": "§11.7 故障后文档不丢",
+      "ok": true,
+      "detail": "revision=5"
+    },
+    {
+      "item": "§11.8 测试与交付记录",
+      "ok": true,
+      "detail": "见 pnpm test 输出、本脚本输出与 docs/DELIVERY.md"
+    }
+  ],
+  "failures": 0
+}

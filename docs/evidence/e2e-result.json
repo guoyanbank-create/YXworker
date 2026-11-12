@@ -1,0 +1,92 @@
+{
+  "baseUrl": "http://127.0.0.1:8788",
+  "ranAt": "2026-11-12T00:48:30.557Z",
+  "results": [
+    {
+      "item": "启动方式",
+      "ok": true,
+      "detail": "node apps/server/dist/index.js @ http://127.0.0.1:8788"
+    },
+    {
+      "item": "工作台载入",
+      "ok": true,
+      "detail": "project=智惠导服智能问答优化"
+    },
+    {
+      "item": "真实模型生成建议卡片",
+      "ok": true,
+      "detail": "cards=5"
+    },
+    {
+      "item": "真实模型 provenance（非 Mock）",
+      "ok": true,
+      "detail": "model=deepseek-flash backend=dsh provider=openai-compatible"
+    },
+    {
+      "item": "Run 记录 latency/tokens（完成后已更新）",
+      "ok": true,
+      "detail": "latency=33772ms tokens=1711/7196"
+    },
+    {
+      "item": "建议卡片带引用依据",
+      "ok": true,
+      "detail": "citations=7"
+    },
+    {
+      "item": "采纳第 1 条",
+      "ok": true,
+      "detail": "status=已采纳"
+    },
+    {
+      "item": "采纳第 2 条",
+      "ok": true,
+      "detail": "status=已采纳"
+    },
+    {
+      "item": "拒绝一条",
+      "ok": true,
+      "detail": "status=已拒绝"
+    },
+    {
+      "item": "继续讨论只更新该条",
+      "ok": true,
+      "detail": "status=修订中"
+    },
+    {
+      "item": "拒绝与讨论均执行",
+      "ok": true,
+      "detail": "rejected=true discussed=true"
+    },
+    {
+      "item": "人工编辑触发冲突且禁止覆盖",
+      "ok": true,
+      "detail": "conflictCards=1"
+    },
+    {
+      "item": "创建命名版本 V1.1",
+      "ok": true,
+      "detail": "versions=2"
+    },
+    {
+      "item": "导出 Word 下载",
+      "ok": true,
+      "detail": "bytes=11643"
+    },
+    {
+      "item": "故障演练 429 分流",
+      "ok": true,
+      "detail": "code=model_rate_limited"
+    },
+    {
+      "item": "页面无未捕获异常",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "item": "保存状态正常",
+      "ok": true,
+      "detail": "saveStatus=已保存"
+    }
+  ],
+  "failures": 0
+}
