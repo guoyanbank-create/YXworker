@@ -1,4 +1,4 @@
-/** 导出路由：GET /api/documents/:id/export.docx（可选 versionId）。 */
+/** 导出路由：GET /api/templates、GET /api/documents/:id/export.docx（可选 versionId/template）。 */
 import { Router } from 'express';
 import { z } from 'zod';
 import type { AppConfig } from '../config.js';
@@ -9,6 +9,7 @@ import {
   buildDocxBuffer,
   contentDispositionFor,
   DOCX_MIME,
+  DOCUMENT_TEMPLATES,
 } from '../services/exportDocx.js';
 import { getVersion } from '../services/versionsService.js';
 
@@ -17,11 +18,21 @@ export interface RouterDeps {
   config: AppConfig;
 }
 
-const querySchema = z.object({ versionId: z.string().trim().min(1).optional() });
+const templateSchema = z.enum(['gov', 'tech']);
+
+const querySchema = z.object({
+  versionId: z.string().trim().min(1).optional(),
+  template: templateSchema.default('tech'),
+});
 
 export function createExportRouter(deps: RouterDeps): Router {
   const { db } = deps;
   const router = Router();
+
+  // P2：可用 Word 模板（gov 政务公文 / tech 技术方案）。
+  router.get('/templates', (_req, res) => {
+    res.json({ templates: DOCUMENT_TEMPLATES });
+  });
 
   router.get('/documents/:id/export.docx', async (req, res, next) => {
     try {
@@ -32,7 +43,7 @@ export function createExportRouter(deps: RouterDeps): Router {
           issues: query.error.issues.map((issue) => issue.message),
         });
       }
-      const versionId = query.data.versionId;
+      const { versionId, template } = query.data;
       let contentJson: unknown = document.contentJson;
       if (versionId) {
         const version = getVersion(db, versionId);
@@ -42,7 +53,8 @@ export function createExportRouter(deps: RouterDeps): Router {
         contentJson = version.contentJson;
       }
 
-      const buffer = await buildDocxBuffer(contentJson);
+      // 模板只影响 Word 版式/字体/行距/页边距，正文内容不变。
+      const buffer = await buildDocxBuffer(contentJson, template);
       res.setHeader('Content-Type', DOCX_MIME);
       res.setHeader('Content-Disposition', contentDispositionFor(document.title));
       res.setHeader('Content-Length', String(buffer.length));
