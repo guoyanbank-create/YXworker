@@ -2,11 +2,12 @@
 import { config } from './config.js';
 import { openDb } from './db.js';
 import { createApp } from './app.js';
-import { ensureSeed } from './seed/seed.js';
+import { ensureSeed, ensureSeedExtras } from './seed/seed.js';
 
 const db = openDb(config.dbFile);
 if (config.seedDemo) {
   const seeded = ensureSeed(db);
+  ensureSeedExtras(db);
   if (!seeded.skipped) {
     console.log(`[server] 已写入演示数据: project=${seeded.projectId} document=${seeded.documentId}`);
   }

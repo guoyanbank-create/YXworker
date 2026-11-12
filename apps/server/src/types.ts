@@ -116,6 +116,8 @@ export interface Reference {
   filename: string;
   charCount: number;
   excerpt: string;
+  /** P1：已切分的小节/段落数量（@ 定位与来源打开使用）。 */
+  sectionCount?: number;
   createdAt: string;
 }
 
@@ -173,6 +175,8 @@ export interface ProviderStatus {
   id: string;
   label: string;
   configured: boolean;
+  /** P1：是否为当前默认 provider。 */
+  current?: boolean;
   baseUrl: string | null;
   models: string[];
   /** 可用于哪些逻辑档位；空数组表示不可用 */
@@ -196,8 +200,21 @@ export interface DataPolicyInfo {
   note: string;
 }
 
+/** P1：当前默认执行器/模型与超时上限（/api/status 展示）。 */
+export interface CurrentModelStatus {
+  backend: string;
+  providerId: string;
+  providerLabel: string;
+  providerKind?: string;
+  model: string;
+  modelTimeoutMs: number;
+  watchdogTimeoutMs: number;
+  realModelConfigured: boolean;
+}
+
 export interface StatusResponse {
   app: { name: string; version: string; mockMode: boolean };
+  current?: CurrentModelStatus | null;
   providers: ProviderStatus[];
   backends: BackendStatus[];
   dataPolicy: DataPolicyInfo;
