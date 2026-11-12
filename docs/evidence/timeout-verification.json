@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-11-12T00:47:01.618Z",
+  "ranAt": "2026-11-12T01:25:06.546Z",
   "results": [
     {
       "item": "服务启动",
@@ -9,7 +9,7 @@
     {
       "item": "悬挂请求被硬超时终止（不会停留在 running）",
       "ok": true,
-      "detail": "elapsed=3058ms status=failed"
+      "detail": "elapsed=3067ms status=failed"
     },
     {
       "item": "错误码映射 model_timeout",
@@ -19,7 +19,7 @@
     {
       "item": "latencyMs 已写入（非 0）",
       "ok": true,
-      "detail": "latencyMs=3007"
+      "detail": "latencyMs=3006"
     },
     {
       "item": "retryReason 可见",
@@ -39,9 +39,9 @@
   ],
   "failures": 0,
   "run": {
-    "id": "run_f2a82225cb9646739a4d",
-    "projectId": "prj_3ec773a0ad724031b013",
-    "documentId": "doc_6ae85347a1bf4ff59d64",
+    "id": "run_3874398be50c43f9aecc",
+    "projectId": "prj_17f1022736cb44c0b1af",
+    "documentId": "doc_dc79a59a690f45fcb50b",
     "type": "proposal_generation",
     "status": "failed",
     "backend": "dsh",
@@ -57,7 +57,7 @@
     "events": [
       {
         "seq": 1,
-        "at": "2026-11-12T00:46:58.556Z",
+        "at": "2026-11-12T01:25:03.475Z",
         "level": "info",
         "message": "已创建运行任务（排队中）",
         "data": {
@@ -70,13 +70,13 @@
       },
       {
         "seq": 2,
-        "at": "2026-11-12T00:46:58.556Z",
+        "at": "2026-11-12T01:25:03.476Z",
         "level": "info",
         "message": "执行器开始执行"
       },
       {
         "seq": 3,
-        "at": "2026-11-12T00:46:58.557Z",
+        "at": "2026-11-12T01:25:03.476Z",
         "level": "info",
         "message": "执行器开始执行生成任务",
         "data": {
@@ -84,12 +84,14 @@
           "provider": "openai-compatible",
           "model": "deepseek-flash",
           "tier": "review",
-          "targetChapterIndex": 2
+          "targetChapterIndex": 2,
+          "referenceIds": null,
+          "referenceSectionIds": null
         }
       },
       {
         "seq": 4,
-        "at": "2026-11-12T00:46:58.557Z",
+        "at": "2026-11-12T01:25:03.477Z",
         "level": "info",
         "message": "调用模型提供方 openai-compatible（model=deepseek-flash）",
         "data": {
@@ -101,7 +103,7 @@
       },
       {
         "seq": 5,
-        "at": "2026-11-12T00:47:01.563Z",
+        "at": "2026-11-12T01:25:06.482Z",
         "level": "error",
         "message": "运行失败：model_timeout",
         "data": {
@@ -110,13 +112,13 @@
         }
       }
     ],
-    "latencyMs": 3007,
+    "latencyMs": 3006,
     "tokensIn": 0,
     "tokensOut": 0,
     "retryReason": "provider_timeout",
     "fallbackFrom": null,
     "dataPolicyId": "default",
-    "createdAt": "2026-11-12T00:46:58.556Z",
-    "updatedAt": "2026-11-12T00:47:01.563Z"
+    "createdAt": "2026-11-12T01:25:03.475Z",
+    "updatedAt": "2026-11-12T01:25:06.482Z"
   }
 }
