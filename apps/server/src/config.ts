@@ -28,8 +28,9 @@ function parseEnvFile(text: string): Record<string, string> {
 
 function loadCredentialFile(): Record<string, string> {
   const explicit = process.env.YXWORKER_CREDENTIALS_FILE;
-  const candidates = explicit
-    ? [isAbsolute(explicit) ? explicit : resolve(explicit)]
+  const expanded = explicit?.startsWith('~/') ? join(homedir(), explicit.slice(2)) : explicit;
+  const candidates = expanded
+    ? [isAbsolute(expanded) ? expanded : resolve(expanded)]
     : [join(homedir(), '.config', 'yxworker', 'credentials.env')];
   for (const file of candidates) {
     try {

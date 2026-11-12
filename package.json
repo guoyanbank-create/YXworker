@@ -13,11 +13,12 @@
     "dev:server": "pnpm --filter @yxworker/server dev",
     "dev:web": "pnpm --filter @yxworker/web dev",
     "build": "pnpm --filter @yxworker/web build && pnpm --filter @yxworker/server build",
-    "start": "node apps/server/dist/index.js",
+    "start": "node scripts/start.mjs",
     "test": "pnpm --filter @yxworker/server test",
     "test:e2e": "node scripts/e2e.mjs",
     "screenshots": "node scripts/screenshots.mjs",
-    "seed": "pnpm --filter @yxworker/server seed"
+    "seed": "pnpm --filter @yxworker/server seed",
+    "acceptance": "node scripts/acceptance.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
