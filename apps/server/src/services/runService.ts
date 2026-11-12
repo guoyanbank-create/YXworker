@@ -308,3 +308,61 @@ export function abortRunExecution(runId: string): boolean {
 export function unregisterRunAbort(runId: string): void {
   runAborts.delete(runId);
 }
+
+/**
+ * 硬超时看门狗（防御性兜底）：即使执行器内部/网络连接永不返回，也保证 Run 不会永远停留在
+ * running。常规超时由 provider 的 AbortSignal 负责；看门狗在模型超时 + 30s 后强制失败，
+ * 写入 errorCode=model_timeout、latencyMs、retryReason=watchdog_timeout，并中止执行。
+ */
+const runWatchdogs = new Map<string, NodeJS.Timeout>();
+
+export function runWatchdogTimeoutMs(): number {
+  const raw = Number(process.env.YXWORKER_LLM_TIMEOUT_MS ?? '');
+  const modelTimeout = Number.isFinite(raw) && raw > 0 ? Math.trunc(raw) : 60_000;
+  return modelTimeout + 30_000;
+}
+
+export function scheduleRunWatchdog(
+  db: Db,
+  runId: string,
+  timeoutMs: number,
+  onTimeout?: () => void,
+): void {
+  clearRunWatchdog(runId);
+  const timer = setTimeout(() => {
+    runWatchdogs.delete(runId);
+    try {
+      const current = findRun(db, runId);
+      if (!current || current.status === 'cancelled' || isTerminalStatus(current.status)) return;
+      const createdAt = Date.parse(current.createdAt);
+      const latencyMs = Number.isFinite(createdAt) ? Math.max(0, Date.now() - createdAt) : 0;
+      failRun(
+        db,
+        runId,
+        {
+          code: 'model_timeout',
+          message: '模型调用超过硬超时，已中止并标记失败（不会停留在 running）',
+          retryable: true,
+        },
+        { latencyMs, retryReason: 'watchdog_timeout' },
+      );
+    } catch {
+      // 看门狗自身失败不应影响进程
+    }
+    try {
+      onTimeout?.();
+    } catch {
+      // ignore
+    }
+  }, Math.max(1, timeoutMs));
+  timer.unref?.();
+  runWatchdogs.set(runId, timer);
+}
+
+export function clearRunWatchdog(runId: string): void {
+  const timer = runWatchdogs.get(runId);
+  if (timer) {
+    clearTimeout(timer);
+    runWatchdogs.delete(runId);
+  }
+}

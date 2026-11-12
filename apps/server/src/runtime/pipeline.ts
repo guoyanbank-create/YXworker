@@ -22,7 +22,7 @@ import type {
 } from './types.js';
 
 /**
- * 真实模型调用超时：契约默认 90s；可用 YXWORKER_LLM_TIMEOUT_MS 调大以适配慢网关
+ * 真实模型调用超时：默认 60s；可用 YXWORKER_LLM_TIMEOUT_MS 调整（缺陷修复要求：超时必须映射到 run，不得悬挂）
  * （仅只读阶段；不改变 429/5xx/网络/超时分别映射错误码的行为）。
  */
 function modelTimeoutMs(): number {

@@ -48,7 +48,7 @@ export function createStatusRouter(deps: RouterDeps): Router {
         mockModeAvailable: true,
       },
       limits: {
-        modelTimeout: '90000ms',
+        modelTimeout: '60000ms（可用 YXWORKER_LLM_TIMEOUT_MS 覆盖）',
         proposalCount: '1-10（默认 5）',
         promptMaxChars: '4000',
         referenceMaxBytes: '10MB（docx/md/txt）',

@@ -174,6 +174,8 @@
 - 该网关实测支持 `json_object`，**不支持 `json_schema`**：提案请求必须用
   `response_format: { type: "json_object" }`，由服务端 zod 校验 + 一次修复重试。
 - 逻辑档位映射：`draft/review → YXWORKER_TIER_REVIEW`，`long_reasoning → YXWORKER_TIER_LONG_REASONING`。
-- 超时默认 90s；429/5xx/网络错误分别映射为 `model_rate_limited` / `model_unavailable`，
+- 超时默认 60s（`YXWORKER_LLM_TIMEOUT_MS` 可覆盖）；429/5xx/网络/超时分别映射为
+  `model_rate_limited` / `model_unavailable` / `model_timeout`，另由看门狗兜底（模型超时+30s），
+  保证 run 不会停留在 running；
   仅对只读阶段（生成/讨论）做有限重试，不做跨提供方自动上传。
 - `backend=mock` 为离线模拟执行器：确定性地产生 5 条提案用于本地演示/测试，UI 必须显示“模拟”。

@@ -57,7 +57,7 @@ export function mapFetchError(error: unknown): LlmError {
     name === 'AbortError' ||
     (causeCode !== undefined && timeoutCodes.has(causeCode))
   ) {
-    return new LlmError('model_timeout', '模型网关请求超时（默认 90s）', { retryable: true });
+    return new LlmError('model_timeout', '模型网关请求超时（默认 60s）', { retryable: true });
   }
   return new LlmError('model_unavailable', '模型网关网络请求失败（网络中断或地址不可达）', {
     retryable: true,

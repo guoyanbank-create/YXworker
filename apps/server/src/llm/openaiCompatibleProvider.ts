@@ -17,7 +17,7 @@ import {
 import { LlmError } from './types.js';
 import type { FetchLike, LlmCallRequest, LlmCallResult, LlmProvider } from './types.js';
 
-export const DEFAULT_MODEL_TIMEOUT_MS = 90_000;
+export const DEFAULT_MODEL_TIMEOUT_MS = 60_000;
 
 export interface OpenAiCompatibleProviderOptions {
   /** 只传 config.llm（含 baseUrl/apiKey/model/tiers），凭据仅存在于服务端内存。 */

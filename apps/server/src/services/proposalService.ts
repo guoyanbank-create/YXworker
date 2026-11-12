@@ -720,6 +720,9 @@ async function executeGeneration(
   const { run, project, document, request } = input;
   const started = Date.now();
   const controller = runService.registerRunAbort(run.id);
+  runService.scheduleRunWatchdog(db, run.id, runService.runWatchdogTimeoutMs(), () =>
+    controller.abort(),
+  );
   const emit = emitSafely(db, run.id);
   let injectedFault: string | null = null;
   try {
@@ -811,9 +814,14 @@ async function executeGeneration(
     const runError = toRunError(error);
     runService.failRun(db, run.id, runError, {
       latencyMs: Date.now() - started,
-      retryReason: injectedFault ? `fault_injected:${injectedFault}` : undefined,
+      retryReason: injectedFault
+        ? `fault_injected:${injectedFault}`
+        : toRunError(error).code === 'model_timeout'
+          ? 'provider_timeout'
+          : undefined,
     });
   } finally {
+    runService.clearRunWatchdog(run.id);
     runService.unregisterRunAbort(run.id);
   }
 }
@@ -850,6 +858,9 @@ async function executeDiscussion(
   const { run, project, document, proposal, request } = input;
   const started = Date.now();
   const controller = runService.registerRunAbort(run.id);
+  runService.scheduleRunWatchdog(db, run.id, runService.runWatchdogTimeoutMs(), () =>
+    controller.abort(),
+  );
   const emit = emitSafely(db, run.id);
   let injectedFault: string | null = null;
   try {
@@ -920,9 +931,14 @@ async function executeDiscussion(
     if (!current || current.status === 'cancelled' || controller.signal.aborted) return;
     runService.failRun(db, run.id, toRunError(error), {
       latencyMs: Date.now() - started,
-      retryReason: injectedFault ? `fault_injected:${injectedFault}` : undefined,
+      retryReason: injectedFault
+        ? `fault_injected:${injectedFault}`
+        : toRunError(error).code === 'model_timeout'
+          ? 'provider_timeout'
+          : undefined,
     });
   } finally {
+    runService.clearRunWatchdog(run.id);
     runService.unregisterRunAbort(run.id);
   }
 }
