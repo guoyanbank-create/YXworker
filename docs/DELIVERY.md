@@ -98,3 +98,61 @@ run 可在 `running` 悬挂 3 分钟以上。排查与修复如下：
 6. **单机单进程 SQLite**：不支持多副本/多节点；数据目录需随备份策略自行保护。
 7. **许可**：univer-workspace 源码 Apache-2.0、DSH MIT、LibreOffice Kit MPL-2.0（仅使用其
    渲染验证，不随产品分发）；本项目不依赖 Univer 商业 SDK（无 License 采购）。
+
+---
+
+# P1/P2 交付（2026-11-12 续，P0 合并 main 后）
+
+> 仍为本机单用户、不购买 Univer License、只用脱敏/虚构材料；P0 交付与验收见上文。
+> 逐条对照的实际验证证据见 `artifacts/p1p2/`、`artifacts/e2e-p1p2/` 与 `docs/evidence/`。
+
+## 6.1 P1 已做
+
+| # | 目标 | 实现 | 验证 |
+| --- | --- | --- | --- |
+| P1-1 | 引用资料增强：@ 定位到具体章节/段落，检索返回 locator+excerpt，卡片可打开来源 | 上传/首启自动切分 `reference_sections`（小节/段落、locator、excerpt、正文）；`GET …/references/locators?q=` 检索；`GET …/references/:refId/sections[/:sectionId]`；UI 小节展开、检索、提及 chip、来源弹窗（正文+excerpt 高亮/复制） | `pnpm acceptance:p1p2` 26/26（P1-1 四条 PASS：sectionCount=4/4、检索 locator+excerpt、来源打开）；`pnpm test:e2e:p1p2` | 
+| P1-2 | 批注定位闭环：定位跳转+高亮选中范围；冲突项定位到变化段落 | 编辑器定位装饰（段落/段内范围/冲突色）；paragraphId 缺失时按 paragraphIndex/quote 兜底并提示“段落已变化” | UI E2E：定位高亮 PASS；冲突定位与兜底截图 |
+| P1-3 | Provider 三选 + 故障/超时可见；status 展示当前 provider 与超时上限 | generate/discuss 支持 `provider` 三选与 `referenceIds/referenceSectionIds`；`/api/status.current`（backend/provider/model/modelTimeoutMs/watchdogTimeoutMs/realModelConfigured）；故障演练五类（含 timeout） | 真实验证：openai-compatible 成功（latency 22492ms、tokens 1713/4353）、deepseek-anthropic 真实调用成功；provider=mock 明确标注；故障 timeout→`model_timeout` |
+| P1-4 | Codex 诚实标注 + DSH fallback 边界写入文档 | Codex 仅探测不可用；DSH 边界见 §6.4 | `/api/status.backends` codex=false + 原因；本文 §6.4 |
+
+## 6.2 P2 已做
+
+| # | 目标 | 实现 | 验证 |
+| --- | --- | --- | --- |
+| P2-5 | Mermaid 图表：源码 + 渲染预览，版本与文档版本绑定 | `diagrams` 表 + CRUD/bind API；浏览器 mermaid strict 渲染（失败可见）；默认绑定当前 revision，可绑定命名版本 V1.0/V1.1 | API 验收 PASS（创建/绑定 V1.0/更新）；UI E2E：创建 1 张后共 3 张、SVG 渲染、绑定 V1.0 |
+| P2-6 | 功能清单（FeatureSpec） | `feature_specs` 表 + CRUD API/UI（status/priority/chapterRef/diagramId） | API PASS；UI E2E 新增一条 PASS |
+| P2-7 | ImpactPlan：先展示受影响章节/图表再逐项执行 | `impact_plans` 表；按提案目标段落聚合章节，按 chapterRef/版本落后命中图表，按 chapterRef/diagramId 命中功能；execute 批量采纳 + executedAt | API PASS（1 章节/3 图表/4 功能；execute executedAt=true）；UI E2E 计划展示 + 逐项执行 PASS |
+| P2-8 | 公文模板（政务/技术两套）+ 批量采纳 | `GET /api/templates`；`export.docx?template=gov|tech`（gov 小标宋/黑体/仿宋/28pt 固定行距/A4 公文边距；tech 微软雅黑/1.5 倍行距，正文不变）；`POST …/proposals/batch-accept` 逐条结果 | API PASS（gov/tech 各渲染 2 页、批量混合结果）；UI E2E：批量采纳逐条结果、gov 模板下载 |
+
+## 6.3 P1/P2 验证命令与结果（本机实跑）
+
+| 命令 | 结果 |
+| --- | --- |
+| `pnpm test` | **143/143 通过**（17 个测试文件：P0 96 + P1 23 + P2 24） |
+| `pnpm build` | 前端（Vite，含 mermaid）+ 服务端 tsc 通过 |
+| `pnpm acceptance:p1p2` | **26/26 通过**（真实 openai-compatible + 真实 deepseek-anthropic；图表/清单/ImpactPlan/批量/模板） |
+| `pnpm test:e2e:p1p2` | **UI E2E（真实模型）**：结果见 `artifacts/e2e-p1p2/result.json` 与 `docs/evidence/` |
+| P0 回归 | `pnpm acceptance`、`pnpm test:e2e`、`pnpm verify:timeout` 仍全绿 |
+
+> 说明：交付默认模型超时为 60s（缺陷修复要求）；本机网关延迟存在波动（实测 14–90s+）。
+> 验收/E2E 脚本在启动测试实例时设置 `YXWORKER_LLM_TIMEOUT_MS=180000` 以容忍抖动，
+> 交付实例仍使用默认 60s，超时会在 Run 中可见（model_timeout/latencyMs/retryReason）。
+> 如长期使用慢网关，可在 `~/.config/yxworker/credentials.env` 外通过环境变量调大该值。
+
+## 6.4 DSH fallback 边界（P1-4）
+
+- DSHExecutionBackend 是本机 P0/P1 的**默认最小受控执行器**：服务端直接调用已配置的模型提供方
+  （openai-compatible / deepseek-anthropic / mock），完成“生成/讨论 → 结构化校验”流水线；
+  **不调用开发机 shell、不提供 Codex 终端/命令执行能力**，也不声称等价 Codex。
+- 执行器与模型提供方分离：`backend` 表示编排路径（dsh/mock），`provider` 表示模型来源；
+  `backend=dsh + provider=mock` 时运行记录为 backend=dsh/provider=mock/model=mock-*，UI 标注“模拟”，
+  不代表真实模型输出。
+- Codex 未安装：仅做可用性探测（`/api/status.backends` 显示不可用与原因），不接通、不冒充。
+- 真实模型凭据只在服务端读取；Mock 结果永不标记为真实模型。
+
+## 6.5 P1/P2 未做 / 明确边界
+
+- 图表仅做源码保存 + 浏览器渲染预览；**不做服务端渲染/把图表嵌入 DOCX/图片导出**。
+- 原型（HTML/React 交互预览）、Dify 语义检索、全站向量检索、公文批量模板套用等未做。
+- 多用户/多租户/账号/外部 ACL/对外域名发布按交付形态要求不做；Codex 不接通。
+- Mermaid 依赖较大（懒加载 chunk，主 bundle gzip 约 403KB），本机单用户可接受。

@@ -99,6 +99,7 @@ async function startServer() {
       PORT: String(port),
       HOST: '127.0.0.1',
       YXWORKER_DATA_DIR: tempDataDir,
+      YXWORKER_LLM_TIMEOUT_MS: process.env.YXWORKER_LLM_TIMEOUT_MS ?? '180000',
       ...(process.env.YXWORKER_LLM_TIMEOUT_MS
         ? { YXWORKER_LLM_TIMEOUT_MS: process.env.YXWORKER_LLM_TIMEOUT_MS }
         : {}),

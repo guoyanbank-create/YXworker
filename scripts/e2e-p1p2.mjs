@@ -63,7 +63,14 @@ async function startServer() {
   const log = createWriteStream(join(artifactsDir, 'server.log'));
   server = spawn(process.execPath, [join(root, 'apps/server/dist/index.js')], {
     cwd: root,
-    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', YXWORKER_DATA_DIR: tempDataDir },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      HOST: '127.0.0.1',
+      YXWORKER_DATA_DIR: tempDataDir,
+      // 验收环境放宽模型超时以容忍网关抖动；交付默认仍是 60s（可用 YXWORKER_LLM_TIMEOUT_MS 覆盖）
+      YXWORKER_LLM_TIMEOUT_MS: process.env.YXWORKER_LLM_TIMEOUT_MS ?? '180000',
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   server.stdout.pipe(log);
@@ -89,6 +96,8 @@ async function main() {
   const browser = await chromium.launch({ executablePath: chromePath, headless });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true, locale: 'zh-CN' });
   const page = await context.newPage();
+  page.setDefaultTimeout(12_000);
+  page.setDefaultNavigationTimeout(30_000);
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(String(error).slice(0, 400)));
 
@@ -115,10 +124,19 @@ async function main() {
     // ---------- status.current / provider ----------
     const statusRes = await (await page.request.get(`${baseUrl}/api/status`)).json();
     const current = statusRes.current;
+    const expectedModelTimeout = Number(
+      process.env.YXWORKER_LLM_TIMEOUT_MS ?? (externalBase ? 60000 : 180000),
+    );
     record(
       'P1-3 status.current 展示 provider/model/超时',
-      Boolean(current && current.providerId === 'openai-compatible' && current.model === 'deepseek-flash' && current.modelTimeoutMs === 60000 && current.watchdogTimeoutMs === 90000),
-      `provider=${current?.providerId} model=${current?.model} timeout=${current?.modelTimeoutMs}/${current?.watchdogTimeoutMs}`,
+      Boolean(
+        current &&
+          current.providerId === 'openai-compatible' &&
+          current.model === 'deepseek-flash' &&
+          current.modelTimeoutMs === expectedModelTimeout &&
+          current.watchdogTimeoutMs === expectedModelTimeout + 30000,
+      ),
+      `provider=${current?.providerId} model=${current?.model} timeout=${current?.modelTimeoutMs}/${current?.watchdogTimeoutMs}（测试环境覆盖=${process.env.YXWORKER_LLM_TIMEOUT_MS ?? '默认 60000'}）`,
     );
     const providerLabel = await page.locator('[data-testid="provider-current-label"]').innerText().catch(() => '');
     record('P1-3 顶部展示当前 provider', providerLabel.includes('deepseek-flash'), providerLabel.trim());
@@ -167,16 +185,24 @@ async function main() {
     const highlight = await page.locator('[data-testid="source-highlight"]').count();
     record('P1-2 引用来源弹窗（locator/正文/摘录高亮）', sourceLocator.length > 0 && sourceContent.length > 20 && highlight > 0, `locator=${sourceLocator.trim()} content=${sourceContent.length}ch highlight=${highlight}`);
     await shot('04-source-dialog');
+    step('关闭来源弹窗');
     await page.click('[data-testid="btn-source-close"]');
+    await page.waitForTimeout(300);
+    step('点击卡片定位');
 
     const locateNotes = [];
     await cards().nth(0).locator('[data-testid="btn-locate"]').click();
     await page.waitForTimeout(600);
     const highlightCount = await page.locator('[data-testid="proposal-highlight"]').count();
-    locateNotes.push(await page.locator('[data-testid="proposal-locate-note"]').innerText().catch(() => ''));
+    locateNotes.push(
+      (await page.locator('[data-testid="proposal-locate-note"]').count()) > 0
+        ? await page.locator('[data-testid="proposal-locate-note"]').first().innerText().catch(() => '')
+        : '',
+    );
     record('P1-2 卡片定位到正文并高亮范围', highlightCount > 0, `highlights=${highlightCount}`);
     await shot('05-locate-highlight');
 
+    step('Mock 标注检查');
     // ---------- P1-3 Mock 明确标注 ----------
     await page.selectOption('[data-testid="backend-select"]', 'mock');
     await page.waitForTimeout(600);
@@ -199,8 +225,21 @@ async function main() {
     const bindings = await page.locator('[data-testid="diagram-binding"]').allInnerTexts();
     record('P2-5 图表创建/渲染/版本绑定', diagramItems >= 3 && previewSvg > 0 && bindings.some((b) => b.includes('V1.0')), `diagrams=${diagramItems} svg=${previewSvg} bindings=${bindings.map((b) => b.trim()).join('|')}`);
     await shot('07-diagrams');
-    await page.locator('[data-testid="btn-bind-diagram"]').first().click();
-    await page.waitForTimeout(800);
+    // 显式绑定命名版本：编辑第一张图表 → 选择 V1.0 → 绑定
+    await page.locator('[data-testid="btn-edit-diagram"]').first().click();
+    await page.waitForTimeout(500);
+    const versionValue = await page
+      .locator('[data-testid="diagram-version-select"] option', { hasText: 'V1.0' })
+      .first()
+      .getAttribute('value');
+    if (versionValue) {
+      await page.selectOption('[data-testid="diagram-version-select"]', versionValue);
+      await page.waitForTimeout(300);
+      await page.click('[data-testid="btn-bind-diagram"]');
+      await page.waitForTimeout(1200);
+    }
+    const boundTexts = await page.locator('[data-testid="diagram-binding"]').allInnerTexts();
+    record('P2-5 UI 绑定命名版本', boundTexts.some((t) => t.includes('V1.0')), `bindings=${boundTexts.map((t) => t.trim()).join('|')}`);
     await shot('08-diagram-bind');
 
     // ---------- P2-6 功能清单 ----------
