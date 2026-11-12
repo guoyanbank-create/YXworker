@@ -1,0 +1,137 @@
+{
+  "baseUrl": "http://127.0.0.1:8800",
+  "ranAt": "2026-11-12T01:09:26.517Z",
+  "results": [
+    {
+      "item": "启动方式",
+      "ok": true,
+      "detail": "node apps/server/dist/index.js @ http://127.0.0.1:8800"
+    },
+    {
+      "item": "P1-1 引用含小节数",
+      "ok": true,
+      "detail": "refs=2 sectionCounts=4,4"
+    },
+    {
+      "item": "P1-1 @ 检索返回 locator+excerpt",
+      "ok": true,
+      "detail": "results=2 first=第 2 节 试点范围 / 第 1 段"
+    },
+    {
+      "item": "P1-1 引用小节列表",
+      "ok": true,
+      "detail": "sections=4"
+    },
+    {
+      "item": "P1-1 来源打开（单小节）",
+      "ok": true,
+      "detail": "locator=第 1 节 目标 / 第 1 段"
+    },
+    {
+      "item": "P1-3 status 展示当前 provider 与超时上限",
+      "ok": true,
+      "detail": "current=openai-compatible/deepseek-flash timeout=60000ms watchdog=90000ms"
+    },
+    {
+      "item": "P1-3 三 provider 可选（openai-compatible/deepseek-anthropic/mock）",
+      "ok": true,
+      "detail": "providers=deepseek-anthropic,mock,openai-compatible"
+    },
+    {
+      "item": "P1-3 provider=mock 运行且标注 mock",
+      "ok": true,
+      "detail": "provider=mock model=mock-proposal-v1"
+    },
+    {
+      "item": "P1-3 openai-compatible 真实模型运行（非 Mock）",
+      "ok": true,
+      "detail": "status=succeeded provider=openai-compatible model=deepseek-flash latency=22492ms tokens=1713/4353"
+    },
+    {
+      "item": "P1-3 deepseek-anthropic provider 可切换并真实调用",
+      "ok": true,
+      "detail": "status=succeeded provider=deepseek-anthropic model=deepseek-flash code=null"
+    },
+    {
+      "item": "P1-1 指定 referenceSectionIds 生成",
+      "ok": true,
+      "detail": "status=succeeded"
+    },
+    {
+      "item": "P1-3 超时故障可见（model_timeout + latencyMs/retryReason）",
+      "ok": true,
+      "detail": "code=model_timeout latency=1 retry=fault_injected:timeout"
+    },
+    {
+      "item": "P2-5 图表创建并绑定当前 revision",
+      "ok": true,
+      "detail": "revision=1 version=current"
+    },
+    {
+      "item": "P2-5 图表列表",
+      "ok": true,
+      "detail": "diagrams=3"
+    },
+    {
+      "item": "P2-5 绑定命名版本 V1.0",
+      "ok": true,
+      "detail": "version=V1.0 revision=1"
+    },
+    {
+      "item": "P2-5 图表更新",
+      "ok": true,
+      "detail": "source 已更新"
+    },
+    {
+      "item": "P2-6 功能清单创建/更新",
+      "ok": true,
+      "detail": "id=feat_0a9500cd2750405c9bcd"
+    },
+    {
+      "item": "P2-7 存在待审提案用于影响分析",
+      "ok": true,
+      "detail": "pending=11"
+    },
+    {
+      "item": "P2-7 ImpactPlan 展示受影响章节/图表/功能",
+      "ok": true,
+      "detail": "chapters=1 diagrams=3 features=4"
+    },
+    {
+      "item": "P2-7 ImpactPlan 逐项执行（批量采纳）",
+      "ok": true,
+      "detail": "results=3 executedAt=true"
+    },
+    {
+      "item": "P2-8 批量采纳逐条结果（成功+失败并存）",
+      "ok": true,
+      "detail": "results=badc:ok,8043:ok,9389:ok,a586:提案当前状态为 accepted，不允许采纳"
+    },
+    {
+      "item": "P2-8 两套模板可用（gov/tech）",
+      "ok": true,
+      "detail": "templates=gov,tech"
+    },
+    {
+      "item": "P2-8 模板导出 gov",
+      "ok": true,
+      "detail": "bytes=12033"
+    },
+    {
+      "item": "P2-8 模板 gov 可渲染",
+      "ok": true,
+      "detail": "pages=2"
+    },
+    {
+      "item": "P2-8 模板导出 tech",
+      "ok": true,
+      "detail": "bytes=12005"
+    },
+    {
+      "item": "P2-8 模板 tech 可渲染",
+      "ok": true,
+      "detail": "pages=2"
+    }
+  ],
+  "failures": 0
+}

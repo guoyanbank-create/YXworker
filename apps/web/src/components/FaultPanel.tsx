@@ -31,6 +31,12 @@ const FAULTS: Array<{ fault: FaultKind; label: string; code: string; title: stri
     title: '模拟网络断开，验证网络错误分流',
   },
   {
+    fault: 'timeout',
+    label: '模型超时',
+    code: 'model_timeout',
+    title: '注入模型超时（含看门狗兜底），验证 504 超时错误分流且 run 不悬挂',
+  },
+  {
     fault: 'data_policy',
     label: '数据分级外发',
     code: 'data_policy_blocked',
@@ -48,7 +54,8 @@ export function FaultPanel({ enabled, busy, result, providerConfigured, onFault 
         </h3>
       </div>
       <p className="section-hint">
-        触发一次生成请求并注入故障，验证错误分流与“文档不丢”。演练不会写入正文；数据分级演练结束后会自动恢复原分级。
+        触发一次生成请求并注入五类故障之一（限流/网关错误/断网/超时/数据分级外发），验证错误码分流与“文档不丢”。
+      演练不会写入正文；数据分级演练结束后会自动恢复原分级。
       </p>
       <div className="fault-grid">
         {FAULTS.map((item) => (
@@ -95,7 +102,9 @@ export function FaultPanel({ enabled, busy, result, providerConfigured, onFault 
             <p>
               <code>{result.code}</code> — {result.message}
             </p>
-            <p className="fault-result-meta">文档内容未受影响，可继续编辑或导出。</p>
+            <p className="fault-result-meta">
+              文档内容未受影响，可继续编辑或导出。预期错误码：{FAULTS.find((item) => item.fault === result.fault)?.code ?? '—'}
+            </p>
           </div>
         </div>
       ) : null}

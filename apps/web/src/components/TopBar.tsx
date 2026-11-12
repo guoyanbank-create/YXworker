@@ -1,6 +1,6 @@
 /** 顶部栏：项目名、版本、保存状态、版本历史、导出 Word、数据分级、执行器标识。 */
 import type { DataLevel, Document, ExecutionBackendId, Project, StatusResponse, Version } from '../api/types';
-import { DATA_LEVEL_LABELS } from '../api/types';
+import { DATA_LEVEL_LABELS, TEMPLATE_OPTIONS } from '../api/types';
 import type { SaveState } from '../ui/types';
 import { AlertIcon, CheckIcon, ChevronDownIcon, DownloadIcon, HistoryIcon } from './Icons';
 
@@ -22,10 +22,12 @@ export interface TopBarProps {
   status: StatusResponse | null;
   exporting: boolean;
   dataLevelBusy: boolean;
+  exportTemplate: 'gov' | 'tech';
   onOpenVersions: () => void;
   onExport: () => void;
   onPreviewVersion: (versionId: string) => void;
   onChangeDataLevel: (level: DataLevel) => void;
+  onChangeExportTemplate: (template: 'gov' | 'tech') => void;
 }
 
 const SAVE_LABELS: Record<SaveState, string> = {
@@ -48,10 +50,12 @@ export function TopBar({
   status,
   exporting,
   dataLevelBusy,
+  exportTemplate,
   onOpenVersions,
   onExport,
   onPreviewVersion,
   onChangeDataLevel,
+  onChangeExportTemplate,
 }: TopBarProps) {
   const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
   const mockMode = status?.app.mockMode === true || executor === 'mock';
@@ -125,13 +129,29 @@ export function TopBar({
           版本历史
         </button>
 
+        <label className="topbar-field" title="Word 导出模板（只影响版式，不改正文）">
+          <select
+            className="select select-template"
+            data-testid="template-select"
+            value={exportTemplate}
+            onChange={(event) => onChangeExportTemplate(event.target.value as 'gov' | 'tech')}
+          >
+            {TEMPLATE_OPTIONS.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDownIcon size={13} className="select-arrow" />
+        </label>
+
         <button
           type="button"
           className="btn btn-ghost"
           data-testid="btn-export"
           onClick={onExport}
           disabled={exporting || !document}
-          title="导出当前文档为 Word（.docx）"
+          title={`导出当前文档为 Word（.docx，模板 ${exportTemplate}）`}
         >
           <DownloadIcon size={15} />
           {exporting ? '导出中…' : '导出 Word'}
@@ -167,6 +187,11 @@ export function TopBar({
         >
           <span className="executor-dot" />
           {mockMode ? '模拟' : 'DSH（真实模型）'}
+          {status?.current && !mockMode ? (
+            <span className="executor-provider" data-testid="provider-current-label" title={`provider=${status.current.providerId} · model=${status.current.model}`}>
+              · {status.current.providerLabel} · {status.current.model}
+            </span>
+          ) : null}
           {tierLabel ? <span className="executor-tier">· {tierLabel}</span> : null}
         </span>
       </div>

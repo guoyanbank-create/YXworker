@@ -46,13 +46,17 @@ pnpm start          # 首次会自动构建，随后启动前端+后端
 
 ```bash
 pnpm test           # 服务端单元/集成测试（vitest，不依赖网络）
-pnpm test:e2e       # 本机端到端验收脚本（Playwright + 系统 Chrome）
+pnpm test:e2e       # P0 端到端验收（Playwright + 系统 Chrome）
+pnpm test:e2e:p1p2  # P1/P2 端到端验收（引用/provider/图表/清单/ImpactPlan/批量/模板）
+pnpm acceptance     # P0 API 级 §11 验收
+pnpm acceptance:p1p2 # P1/P2 API 级验收
+pnpm verify:timeout # 模型硬超时/看门狗验证
 pnpm dev            # 后端 + 前端开发模式
 pnpm build          # 构建前端与服务端
 pnpm seed           # 重新写入演示数据（幂等）
 ```
 
-## P0 已实现能力
+## 已实现能力（P0 + P1/P2）
 
 - 单页工作台：项目 / 引用资料 / AI 对话 / 运行过程与错误 / Office 式富文本编辑 / 建议卡片 / 版本 / 导出。
 - 提案审阅：JSON 结构化提案、段落锚点 + quote + hash + revision 校验、逐条采纳/拒绝/继续讨论、
@@ -63,13 +67,20 @@ pnpm seed           # 重新写入演示数据（幂等）
   429/5xx/网络/超时/数据分级外发分别给出明确错误；运行记录含模型/耗时/token/错误码。
 - 执行器：`DSH`（默认，真实模型网关，最小受控执行器）、`Mock`（模拟，UI 标注）、
   `Codex`（本机未安装，仅探测为不可用）。
+- **P1**：引用资料 @ 定位到小节/段落（locator+excerpt、来源弹窗）、卡片定位高亮与冲突定位兜底、
+  provider 三选（openai-compatible / deepseek-anthropic / mock）与 `status.current` 超时展示、
+  故障演练五类（429/500/网络/超时/数据分级）。
+- **P2**：Mermaid 图表（源码+浏览器渲染+文档版本绑定）、功能清单（FeatureSpec）、
+  ImpactPlan（先展示受影响章节/图表/功能再逐项执行）、政务公文/技术方案两套 Word 模板与批量采纳。
 
 ## 已知限制（详见 docs/DELIVERY.md）
 
 - 未接入 `univer-workspace` 编辑器：公开 preset 的 Docs 正文 canvas 在本机实测空白，
   P0 改用 TipTap/ProseMirror 富文本 + 服务端权威段落块（ADR-001）。不宣称原生段落级 merge。
-- 未实现 P1/P2 的图表、原型、功能清单、ImpactPlan、Dify 检索、公文模板批量操作；多用户/
-  外部域名按交付形态要求不做。
+- P1/P2 已实现：引用 @ 定位、来源弹窗、定位高亮、provider 三选、Mermaid 图表（源码+渲染+版本绑定）、
+  功能清单、ImpactPlan、政务/技术两套 Word 模板与批量采纳。
+- 仍未做：图表服务端渲染/嵌入 DOCX、原型 HTML/React 预览、Dify/全站语义检索；多用户/账号/外部
+  ACL/对外域名按交付形态要求不做。
 - Codex 未安装，`CodexExecutionBackend` 仅保留接口与不可用探测，不声称已接入。
 - Word 导出用 LibreOffice 引擎渲染校验；本机无 Microsoft Office/WPS，未做其原生人工检查。
 - 真实模型依赖本机网关：凭据缺失时真实执行器显示“未配置”，模拟执行器（UI 标注“模拟”）仍可

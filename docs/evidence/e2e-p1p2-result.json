@@ -1,0 +1,102 @@
+{
+  "baseUrl": "http://127.0.0.1:8789",
+  "ranAt": "2026-11-12T01:24:43.648Z",
+  "results": [
+    {
+      "item": "启动方式",
+      "ok": true,
+      "detail": "node apps/server/dist/index.js @ http://127.0.0.1:8789"
+    },
+    {
+      "item": "P1-3 status.current 展示 provider/model/超时",
+      "ok": true,
+      "detail": "provider=openai-compatible model=deepseek-flash timeout=180000/210000（测试环境覆盖=默认 60000）"
+    },
+    {
+      "item": "P1-3 顶部展示当前 provider",
+      "ok": true,
+      "detail": "· OpenAI 兼容网关 · deepseek-flash"
+    },
+    {
+      "item": "P1-1 引用小节展开与 locator 检索",
+      "ok": true,
+      "detail": "sections=4 searchResults=2"
+    },
+    {
+      "item": "P1-1 小节提及插入",
+      "ok": true,
+      "detail": "chips=1"
+    },
+    {
+      "item": "P1 真实模型生成 5 条提案（provenance 非 Mock）",
+      "ok": true,
+      "detail": "cards=5 model=deepseek-flash provider=openai-compatible"
+    },
+    {
+      "item": "P1-2 引用来源弹窗（locator/正文/摘录高亮）",
+      "ok": true,
+      "detail": "locator=第 2 节 试点范围 / 第 1 段 content=124ch highlight=1"
+    },
+    {
+      "item": "P1-2 卡片定位到正文并高亮范围",
+      "ok": true,
+      "detail": "highlights=1"
+    },
+    {
+      "item": "P1-3 模拟执行器明确标注且 provider 锁定",
+      "ok": true,
+      "detail": "mockBadge=1 providerLocked=true"
+    },
+    {
+      "item": "P2-5 图表创建/渲染/版本绑定",
+      "ok": true,
+      "detail": "diagrams=3 svg=1 bindings=绑定：当前工作版本 rev 1|绑定：V1.0（rev 1）|绑定：V1.0（rev 1）"
+    },
+    {
+      "item": "P2-5 UI 绑定命名版本",
+      "ok": true,
+      "detail": "bindings=绑定：V1.0（rev 1）|绑定：V1.0（rev 1）|绑定：V1.0（rev 1）"
+    },
+    {
+      "item": "P2-6 功能清单新增",
+      "ok": true,
+      "detail": "4→5"
+    },
+    {
+      "item": "P2-8 批量采纳逐条结果",
+      "ok": true,
+      "detail": "checked=1 results=1"
+    },
+    {
+      "item": "P2-7 影响分析可勾选待审提案",
+      "ok": true,
+      "detail": "selected=4"
+    },
+    {
+      "item": "P2-7 ImpactPlan 展示受影响章节/图表/功能",
+      "ok": true,
+      "detail": "chapters=1 diagrams=3 features=3"
+    },
+    {
+      "item": "P2-7 ImpactPlan 逐项执行",
+      "ok": true,
+      "detail": "resultItems=4"
+    },
+    {
+      "item": "P2-8 政务公文模板导出",
+      "ok": true,
+      "detail": "bytes=12030"
+    },
+    {
+      "item": "P1-3 超时故障演练可见",
+      "ok": true,
+      "detail": "code=model_timeout"
+    },
+    {
+      "item": "页面无未捕获异常",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "failures": 0
+}

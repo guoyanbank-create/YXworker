@@ -7,14 +7,22 @@
  * - 不保存任何密钥：前端只发请求，凭据始终由服务端持有。
  */
 import type {
+  BatchAcceptResult,
   DataLevel,
+  Diagram,
   Document,
   DocumentSummary,
+  DocumentTemplateInfo,
   ExecutionBackendId,
   FaultKind,
+  FeatureSpec,
+  ImpactPlan,
   Project,
   Proposal,
+  ProviderId,
   Reference,
+  ReferenceLocatorResult,
+  ReferenceSection,
   Run,
   StatusResponse,
   Tier,
@@ -216,6 +224,11 @@ export interface GenerateInput {
   backend?: ExecutionBackendId;
   count?: number;
   fault?: FaultKind;
+  /** P1：模型提供方三选；不传用服务端 status.current 默认值。 */
+  provider?: ProviderId;
+  /** P1：只把指定引用 / 小节注入提示词（须属于本项目）。 */
+  referenceIds?: string[];
+  referenceSectionIds?: string[];
 }
 
 export function generateProposals(
@@ -252,6 +265,8 @@ export interface DiscussInput {
   message: string;
   tier?: Tier;
   fault?: FaultKind;
+  /** P1：讨论同样支持 provider 切换。 */
+  provider?: ProviderId;
 }
 
 export function discussProposal(proposalId: string, input: DiscussInput): Promise<{ run: Run }> {
@@ -295,14 +310,26 @@ export function restoreVersion(versionId: string): Promise<{ document: Document 
   });
 }
 
-export function exportDocxUrl(documentId: string, versionId?: string): string {
-  const query = versionId ? `?versionId=${encodeURIComponent(versionId)}` : '';
-  return `/api/documents/${documentId}/export.docx${query}`;
+export type ExportTemplate = 'gov' | 'tech';
+
+export function exportDocxUrl(
+  documentId: string,
+  versionId?: string,
+  template: ExportTemplate = 'tech',
+): string {
+  const params = new URLSearchParams();
+  if (versionId) params.set('versionId', versionId);
+  params.set('template', template);
+  return `/api/documents/${documentId}/export.docx?${params.toString()}`;
 }
 
 /** 下载 DOCX 并触发浏览器保存；返回实际文件名。 */
-export async function downloadDocx(documentId: string, versionId?: string): Promise<string> {
-  const path = exportDocxUrl(documentId, versionId);
+export async function downloadDocx(
+  documentId: string,
+  versionId?: string,
+  template: ExportTemplate = 'tech',
+): Promise<string> {
+  const path = exportDocxUrl(documentId, versionId, template);
   let response: Response;
   try {
     response = await fetch(path);
@@ -376,4 +403,182 @@ export const RUN_POLL_INTERVAL_MS = 400;
 
 export function isRunActive(run: Run | null | undefined): boolean {
   return run != null && (run.status === 'queued' || run.status === 'running');
+}
+
+// ---------------------------------------------------------------------------
+// P1：引用资料定位（小节 / locator 检索 / 来源打开）
+// ---------------------------------------------------------------------------
+
+/** 引用项的已切分小节（按 paragraphIndex 升序），用于 @ 选择器与来源弹窗。 */
+export function listReferenceSections(
+  projectId: string,
+  referenceId: string,
+): Promise<{ reference: Reference; sections: ReferenceSection[] }> {
+  return request<{ reference: Reference; sections: ReferenceSection[] }>(
+    `/api/projects/${projectId}/references/${referenceId}/sections`,
+  );
+}
+
+/** 单个小节完整内容（“卡片可点开来源”用）。 */
+export function getReferenceSection(
+  projectId: string,
+  referenceId: string,
+  sectionId: string,
+): Promise<{ reference: Reference; section: ReferenceSection }> {
+  return request<{ reference: Reference; section: ReferenceSection }>(
+    `/api/projects/${projectId}/references/${referenceId}/sections/${sectionId}`,
+  );
+}
+
+/** 跨本项目全部引用检索 locator + excerpt（@ 输入框搜索）。 */
+export function searchReferenceLocators(
+  projectId: string,
+  q: string,
+  limit = 20,
+): Promise<{ results: ReferenceLocatorResult[] }> {
+  const params = new URLSearchParams({ q, limit: String(limit) });
+  return request<{ results: ReferenceLocatorResult[] }>(
+    `/api/projects/${projectId}/references/locators?${params.toString()}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// P2：Mermaid 图表（源码 + 版本绑定）
+// ---------------------------------------------------------------------------
+
+export interface DiagramInput {
+  title: string;
+  kind?: string;
+  source: string;
+  description?: string;
+  chapterRef?: string | null;
+  /** 传命名版本 id 则绑定该版本 revision+name；不传默认当前文档 revision。 */
+  versionId?: string;
+}
+
+export function listDiagrams(projectId: string): Promise<{ diagrams: Diagram[] }> {
+  return request<{ diagrams: Diagram[] }>(`/api/projects/${projectId}/diagrams`);
+}
+
+export function createDiagram(projectId: string, input: DiagramInput): Promise<{ diagram: Diagram }> {
+  return request<{ diagram: Diagram }>(`/api/projects/${projectId}/diagrams`, {
+    method: 'POST',
+    body: json(input),
+  });
+}
+
+export function getDiagram(diagramId: string): Promise<{ diagram: Diagram }> {
+  return request<{ diagram: Diagram }>(`/api/diagrams/${diagramId}`);
+}
+
+export function updateDiagram(
+  diagramId: string,
+  input: Partial<DiagramInput>,
+): Promise<{ diagram: Diagram }> {
+  return request<{ diagram: Diagram }>(`/api/diagrams/${diagramId}`, {
+    method: 'PUT',
+    body: json(input),
+  });
+}
+
+/** 显式绑定命名版本（不改内容）。 */
+export function bindDiagram(diagramId: string, versionId: string): Promise<{ diagram: Diagram }> {
+  return request<{ diagram: Diagram }>(`/api/diagrams/${diagramId}/bind`, {
+    method: 'POST',
+    body: json({ versionId }),
+  });
+}
+
+export async function deleteDiagram(diagramId: string): Promise<void> {
+  await request<null>(`/api/diagrams/${diagramId}`, { method: 'DELETE' });
+}
+
+// ---------------------------------------------------------------------------
+// P2：功能清单（FeatureSpec）
+// ---------------------------------------------------------------------------
+
+export interface FeatureInput {
+  title: string;
+  description?: string;
+  status?: FeatureSpec['status'];
+  priority?: FeatureSpec['priority'];
+  chapterRef?: string | null;
+  diagramId?: string | null;
+}
+
+export function listFeatures(projectId: string): Promise<{ features: FeatureSpec[] }> {
+  return request<{ features: FeatureSpec[] }>(`/api/projects/${projectId}/features`);
+}
+
+export function createFeature(projectId: string, input: FeatureInput): Promise<{ feature: FeatureSpec }> {
+  return request<{ feature: FeatureSpec }>(`/api/projects/${projectId}/features`, {
+    method: 'POST',
+    body: json(input),
+  });
+}
+
+export function updateFeature(
+  featureId: string,
+  input: Partial<FeatureInput>,
+): Promise<{ feature: FeatureSpec }> {
+  return request<{ feature: FeatureSpec }>(`/api/features/${featureId}`, {
+    method: 'PATCH',
+    body: json(input),
+  });
+}
+
+export async function deleteFeature(featureId: string): Promise<void> {
+  await request<null>(`/api/features/${featureId}`, { method: 'DELETE' });
+}
+
+// ---------------------------------------------------------------------------
+// P2：ImpactPlan（先展示影响，再确认执行 = 批量采纳）
+// ---------------------------------------------------------------------------
+
+export interface ImpactPlanInput {
+  proposalIds?: string[];
+  trigger?: string;
+}
+
+export function createImpactPlan(
+  documentId: string,
+  input: ImpactPlanInput = {},
+): Promise<{ plan: ImpactPlan }> {
+  return request<{ plan: ImpactPlan }>(`/api/documents/${documentId}/impact-plan`, {
+    method: 'POST',
+    body: json(input),
+  });
+}
+
+export function getImpactPlan(planId: string): Promise<{ plan: ImpactPlan }> {
+  return request<{ plan: ImpactPlan }>(`/api/impact-plans/${planId}`);
+}
+
+export function executeImpactPlan(
+  planId: string,
+  proposalIds?: string[],
+): Promise<{ plan: ImpactPlan; batch: BatchAcceptResult }> {
+  return request<{ plan: ImpactPlan; batch: BatchAcceptResult }>(
+    `/api/impact-plans/${planId}/execute`,
+    { method: 'POST', body: json({ proposalIds }) },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// P2：批量采纳 / 导出模板
+// ---------------------------------------------------------------------------
+
+export function batchAcceptProposals(
+  documentId: string,
+  ids: string[],
+  reviewer?: string,
+): Promise<BatchAcceptResult> {
+  return request<BatchAcceptResult>(`/api/documents/${documentId}/proposals/batch-accept`, {
+    method: 'POST',
+    body: json({ ids, reviewer }),
+  });
+}
+
+export function listTemplates(): Promise<{ templates: DocumentTemplateInfo[] }> {
+  return request<{ templates: DocumentTemplateInfo[] }>('/api/templates');
 }

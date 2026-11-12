@@ -17,12 +17,16 @@ import {
   sleep,
 } from './api/client';
 import type {
+  BatchAcceptResult,
+  Citation,
   DataLevel,
   Document,
   ExecutionBackendId,
   FaultKind,
+  ImpactPlan,
   Project,
   Proposal,
+  ProviderId,
   Reference,
   Run,
   StatusResponse,
@@ -35,10 +39,52 @@ import { setLocateHighlight } from './editor/extensions';
 import { ErrorState } from './components/ErrorState';
 import { LeftPanel } from './components/LeftPanel';
 import { ProposalPanel } from './components/ProposalPanel';
+import { DiagramPanel } from './components/DiagramPanel';
+import { FeaturePanel } from './components/FeaturePanel';
+import { ImpactPanel } from './components/ImpactPanel';
+import { SourceDialog } from './components/SourceDialog';
 import { Toasts } from './components/Toasts';
 import { TopBar } from './components/TopBar';
 import { VersionDialog } from './components/VersionDialog';
-import type { ApiErrorInfo, FaultResult, RunKind, SaveState, ToastItem } from './ui/types';
+import { DiagramIcon, DocumentCheckIcon, FeatureListIcon, ImpactIcon } from './components/Icons';
+import type {
+  ApiErrorInfo,
+  CenterView,
+  FaultResult,
+  MentionSelection,
+  RunKind,
+  SaveState,
+  ToastItem,
+} from './ui/types';
+
+const PROVIDER_IDS: ProviderId[] = ['openai-compatible', 'deepseek-anthropic', 'mock'];
+
+function isProviderId(value: string): value is ProviderId {
+  return (PROVIDER_IDS as string[]).includes(value);
+}
+
+function mentionKey(mention: MentionSelection): string {
+  return mention.sectionId ?? `ref:${mention.referenceId}`;
+}
+
+function mentionToken(mention: MentionSelection): string {
+  return `@《${mention.referenceTitle}》${mention.locator ? `（${mention.locator}）` : ''}`;
+}
+
+type ExportTemplate = 'gov' | 'tech';
+
+interface CenterTab {
+  id: CenterView;
+  label: string;
+  icon: typeof DiagramIcon;
+}
+
+const CENTER_TABS: CenterTab[] = [
+  { id: 'document', label: '正文编辑', icon: DocumentCheckIcon },
+  { id: 'diagrams', label: '图表', icon: DiagramIcon },
+  { id: 'features', label: '功能清单', icon: FeatureListIcon },
+  { id: 'impact', label: '影响分析', icon: ImpactIcon },
+];
 
 const EXAMPLE_PROJECT_NAME = '智惠导服智能问答优化';
 const EXAMPLE_PROMPT = '引用历史方案与技术说明，第三章给出 5 条修改建议；仅出建议';
@@ -97,15 +143,30 @@ export default function App() {
   const projectRef = useRef<Project | null>(null);
   const watcherRef = useRef<{ cancelled: boolean } | null>(null);
   const locateHighlightTimerRef = useRef<number | null>(null);
+  const providerInitRef = useRef(false);
 
-  // --- 对话输入与执行器 ---
+  // --- 对话输入与执行器 / P1 provider 三选与引用提及 ---
   const [prompt, setPrompt] = useState('');
   const [tier, setTier] = useState<Tier>('review');
   const [executor, setExecutor] = useState<ExecutionBackendId>('dsh');
+  const [provider, setProvider] = useState<ProviderId>('openai-compatible');
+  const [mentions, setMentions] = useState<MentionSelection[]>([]);
   const [generating, setGenerating] = useState(false);
   const [runBusy, setRunBusy] = useState(false);
   const [uploadingReference, setUploadingReference] = useState(false);
   const [busyProposalId, setBusyProposalId] = useState<string | null>(null);
+
+  // --- P1 定位闭环 / 来源弹窗 ---
+  const [locateNotices, setLocateNotices] = useState<Record<string, string>>({});
+  const [sourceCitation, setSourceCitation] = useState<Citation | null>(null);
+
+  // --- P2 中心视图 / 批量采纳 / 导出模板 ---
+  const [centerView, setCenterView] = useState<CenterView>('document');
+  const [selectedProposalIds, setSelectedProposalIds] = useState<string[]>([]);
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchError, setBatchError] = useState<string | null>(null);
+  const [batchResult, setBatchResult] = useState<BatchAcceptResult | null>(null);
+  const [exportTemplate, setExportTemplate] = useState<ExportTemplate>('tech');
 
   // --- 版本/导出/数据分级/故障演练 ---
   const [versionDialogOpen, setVersionDialogOpen] = useState(false);
@@ -166,10 +227,27 @@ export default function App() {
       const value = await api.getStatus();
       setStatus(value);
       setStatusError(null);
-      if (value.app.mockMode) setExecutor('mock');
+      if (value.app.mockMode) {
+        setExecutor('mock');
+        setProvider('mock');
+        providerInitRef.current = true;
+      } else if (!providerInitRef.current && value.current && isProviderId(value.current.providerId)) {
+        setProvider(value.current.providerId);
+        providerInitRef.current = true;
+      }
     } catch (error) {
       setStatusError(errorMessage(error));
     }
+  }
+
+  /** 用服务端返回的权威文档覆盖编辑器内容（采纳 / 批量 / 回退 / 影响计划执行后）。 */
+  function applyDocument(fresh: Document): void {
+    documentRef.current = fresh;
+    revisionRef.current = fresh.revision;
+    appliedSaveStateRef.current = 'saved';
+    setDocument(fresh);
+    setContentJson(fresh.contentJson);
+    setContentToken((token) => token + 1);
   }
 
   async function loadProject(projectId: string): Promise<void> {
@@ -193,6 +271,14 @@ export default function App() {
       ]);
 
       if (docResult.status === 'rejected') throw docResult.reason;
+      // 切换项目时清理跨项目的选择态（@引用/批量选择/定位提示/来源弹窗）。
+      setMentions([]);
+      setSelectedProposalIds([]);
+      setLocateNotices({});
+      setBatchResult(null);
+      setBatchError(null);
+      setSourceCitation(null);
+      setCenterView('document');
       const loadedDocument = docResult.value.document;
       documentRef.current = loadedDocument;
       revisionRef.current = loadedDocument.revision;
@@ -408,6 +494,14 @@ export default function App() {
       const { proposals: list } = await api.listProposals(documentId);
       setProposals(list);
       setProposalsError(null);
+      setSelectedProposalIds((prev) =>
+        prev.filter((id) =>
+          list.some(
+            (proposal) =>
+              proposal.id === id && (proposal.status === 'proposed' || proposal.status === 'revised'),
+          ),
+        ),
+      );
     } catch (error) {
       setProposalsError(errorMessage(error));
     } finally {
@@ -537,7 +631,12 @@ export default function App() {
   }
 
   async function runGenerate(
-    options: { promptOverride?: string; fault?: FaultKind; backendOverride?: ExecutionBackendId } = {},
+    options: {
+      promptOverride?: string;
+      fault?: FaultKind;
+      backendOverride?: ExecutionBackendId;
+      providerOverride?: ProviderId;
+    } = {},
   ): Promise<void> {
     const currentDocument = documentRef.current;
     if (!currentDocument) {
@@ -550,6 +649,10 @@ export default function App() {
       return;
     }
     const backend = options.backendOverride ?? executor;
+    const providerToSend: ProviderId =
+      backend === 'mock' ? 'mock' : (options.providerOverride ?? provider);
+    const referenceIds = [...new Set(mentions.map((mention) => mention.referenceId))];
+    const referenceSectionIds = [...new Set(mentions.flatMap((mention) => (mention.sectionId ? [mention.sectionId] : [])))];
     setGenerating(true);
     setRunError(null);
     try {
@@ -560,6 +663,9 @@ export default function App() {
         backend,
         count: 5,
         fault: options.fault,
+        provider: providerToSend,
+        ...(referenceIds.length > 0 ? { referenceIds } : {}),
+        ...(referenceSectionIds.length > 0 ? { referenceSectionIds } : {}),
       });
       await watchRun(run, options.fault ? 'fault' : 'generate', { fault: options.fault });
     } catch (error) {
@@ -650,7 +756,11 @@ export default function App() {
     setRunError(null);
     try {
       await flushSave();
-      const { run } = await api.discussProposal(proposal.id, { message, tier });
+      const { run } = await api.discussProposal(proposal.id, {
+        message,
+        tier,
+        provider: executor === 'mock' ? 'mock' : provider,
+      });
       await watchRun(run, 'discuss', { proposalId: proposal.id });
     } catch (error) {
       const info = toApiErrorInfo(error);
@@ -661,33 +771,138 @@ export default function App() {
     }
   }
 
+  /**
+   * P1-2 批注定位闭环：优先按 paragraphId 定位；找不到时按 paragraphIndex / quote 兜底，
+   * 并在建议卡片上标注“段落已变化”。冲突项用红色装饰高亮当前对应段落。
+   */
   function handleLocate(proposal: Proposal): void {
+    // 定位发生在正文视图：若当前在 P2 面板先切回正文再执行。
+    setCenterView('document');
+    window.setTimeout(() => locateProposal(proposal), 60);
+  }
+
+  function locateProposal(proposal: Proposal): void {
     const editor = editorRef.current;
     if (!editor || editor.isDestroyed || !editor.view) {
       pushToast('编辑器尚未就绪。', 'error');
       return;
     }
-    let foundPosition = -1;
+    let foundPos = -1;
+    let foundSize = 0;
+    let via: 'id' | 'index' | 'quote' = 'id';
+
     editor.state.doc.descendants((node, pos) => {
-      if (foundPosition >= 0) return false;
+      if (foundPos >= 0) return false;
       if (node.attrs.paragraphId === proposal.paragraphId) {
-        foundPosition = pos;
+        foundPos = pos;
+        foundSize = node.nodeSize;
         return false;
       }
       return true;
     });
-    if (foundPosition < 0) {
-      pushToast('未在正文中找到该段落（可能已被删除或整体重排）。', 'error');
+
+    if (foundPos < 0) {
+      // 兜底 1：按服务端派生段落序号定位顶层块。
+      let index = 0;
+      editor.state.doc.forEach((node, pos) => {
+        if (foundPos >= 0) return;
+        if (index === proposal.paragraphIndex) {
+          foundPos = pos;
+          foundSize = node.nodeSize;
+        }
+        index += 1;
+      });
+      if (foundPos >= 0) via = 'index';
+    }
+
+    if (foundPos < 0) {
+      // 兜底 2：按 oldText/quote 文本片段定位（段落被删除重建后的兜底）。
+      const normalizedNeedles = [proposal.oldText, proposal.quote]
+        .map((text) => text?.replace(/\s+/g, ' ').trim() ?? '')
+        .filter((text) => text.length >= 6);
+      editor.state.doc.descendants((node, pos) => {
+        if (foundPos >= 0) return false;
+        const text = node.textContent.replace(/\s+/g, ' ').trim();
+        if (text.length < 4) return true;
+        const hit = normalizedNeedles.some(
+          (needle) => text.includes(needle) || (needle.includes(text) && text.length >= 24),
+        );
+        if (hit) {
+          foundPos = pos;
+          foundSize = node.nodeSize;
+          return false;
+        }
+        return true;
+      });
+      if (foundPos >= 0) via = 'quote';
+    }
+
+    if (foundPos < 0) {
+      const message = '未在正文中找到该段落（可能已被删除或整体重排）。';
+      setLocateNotices((prev) => ({ ...prev, [proposal.id]: message }));
+      pushToast(message, 'error');
       return;
     }
-    editor.chain().focus().setTextSelection(foundPosition + 1).scrollIntoView().run();
-    // 用 ProseMirror 装饰高亮目标段落（不修改正文、不触发保存）。
-    setLocateHighlight(editor, proposal.paragraphId);
+
+    const node = editor.state.doc.nodeAt(foundPos);
+    const blockText = node?.textContent ?? '';
+    const paragraphId = String(node?.attrs.paragraphId ?? proposal.paragraphId);
+    // 选中范围：优先在段内匹配 oldText/quote，否则选中整段内容。
+    let from = foundPos + 1;
+    let to = foundPos + foundSize - 1;
+    const needle = (proposal.oldText || proposal.quote || '').replace(/\s+/g, ' ').trim();
+    if (needle.length > 0) {
+      const normalizedBlock = blockText.replace(/\s+/g, ' ');
+      const hitIndex = normalizedBlock.indexOf(needle);
+      if (hitIndex >= 0) {
+        from = foundPos + 1 + hitIndex;
+        to = Math.min(from + needle.length, foundPos + foundSize - 1);
+      }
+    }
+    if (to <= from) {
+      from = foundPos + 1;
+      to = foundPos + 1;
+    }
+
+    setLocateHighlight(editor, {
+      paragraphId,
+      from,
+      to,
+      conflict: proposal.status === 'conflicted',
+    });
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from, to })
+      .scrollIntoView()
+      .run();
+
     if (locateHighlightTimerRef.current !== null) window.clearTimeout(locateHighlightTimerRef.current);
     locateHighlightTimerRef.current = window.setTimeout(() => {
       locateHighlightTimerRef.current = null;
       setLocateHighlight(editor, null);
-    }, 2400);
+    }, 3200);
+
+    if (via !== 'id') {
+      const message =
+        via === 'index'
+          ? '段落已变化：paragraphId 未找到，已按段落序号兜底定位。'
+          : '段落已变化：paragraphId 未找到，已按引用原文兜底定位。';
+      setLocateNotices((prev) => ({ ...prev, [proposal.id]: message }));
+      pushToast(message, 'error');
+    } else if (proposal.status === 'conflicted') {
+      setLocateNotices((prev) => ({
+        ...prev,
+        [proposal.id]: '冲突项：已定位到当前文档对应段落（红色高亮），禁止覆盖。',
+      }));
+    } else {
+      setLocateNotices((prev) => {
+        if (!(proposal.id in prev)) return prev;
+        const next = { ...prev };
+        delete next[proposal.id];
+        return next;
+      });
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -765,14 +980,15 @@ export default function App() {
     }
   }
 
-  async function handleExport(versionId?: string): Promise<void> {
+  async function handleExport(versionId?: string, templateOverride?: ExportTemplate): Promise<void> {
     const currentDocument = documentRef.current;
     if (!currentDocument) return;
+    const template = templateOverride ?? exportTemplate;
     setExporting(true);
     try {
       if (!versionId) await flushSave();
-      const filename = await api.downloadDocx(currentDocument.id, versionId);
-      pushToast(`已导出 Word 文档：${filename}`, 'success');
+      const filename = await api.downloadDocx(currentDocument.id, versionId, template);
+      pushToast(`已导出 Word 文档：${filename}（模板 ${template}）`, 'success');
     } catch (error) {
       pushToast(`导出失败：${errorMessage(error)}`, 'error');
     } finally {
@@ -821,9 +1037,85 @@ export default function App() {
     }
   }
 
-  function handleInsertReference(reference: Reference): void {
-    setPrompt((prev) => `${prev}${prev.length > 0 && !prev.endsWith(' ') ? ' ' : ''}@${reference.title} `);
-    pushToast(`已把「${reference.title}」插入对话。`, 'info');
+  /** 插入 @ 提及：整份引用或具体小节；同一小节只保留一次，并随 generate 发送 id 列表。 */
+  function handleInsertMention(mention: MentionSelection): void {
+    const key = mentionKey(mention);
+    if (mentions.some((item) => mentionKey(item) === key)) {
+      pushToast('该引用已在对话中。', 'info');
+      return;
+    }
+    setMentions((prev) => [...prev, mention]);
+    const token = mentionToken(mention);
+    setPrompt((prev) => (prev.trim().length > 0 ? `${prev.replace(/\s+$/, '')} ${token} ` : `${token} `));
+    pushToast(
+      `已插入 @ 引用：${mention.referenceTitle}${mention.locator ? ` · ${mention.locator}` : ''}`,
+      'info',
+    );
+  }
+
+  function handleRemoveMention(mention: MentionSelection): void {
+    const key = mentionKey(mention);
+    setMentions((prev) => prev.filter((item) => mentionKey(item) !== key));
+    const token = mentionToken(mention);
+    setPrompt((prev) => prev.split(token).join('').replace(/[ \t]{2,}/g, ' ').replace(/\s+$/, ''));
+  }
+
+  // -------------------------------------------------------------------------
+  // P2：批量采纳 / 影响计划执行
+  // -------------------------------------------------------------------------
+
+  const pendingProposalIds = proposals
+    .filter((proposal) => proposal.status === 'proposed' || proposal.status === 'revised')
+    .map((proposal) => proposal.id);
+
+  function handleToggleSelect(proposal: Proposal): void {
+    setSelectedProposalIds((prev) =>
+      prev.includes(proposal.id) ? prev.filter((id) => id !== proposal.id) : [...prev, proposal.id],
+    );
+  }
+
+  function handleSelectAllPending(): void {
+    setSelectedProposalIds((prev) => {
+      const allSelected = pendingProposalIds.every((id) => prev.includes(id));
+      return allSelected ? [] : pendingProposalIds;
+    });
+  }
+
+  async function handleBatchAccept(): Promise<void> {
+    const currentDocument = documentRef.current;
+    if (!currentDocument) return;
+    const ids = selectedProposalIds.filter((id) => pendingProposalIds.includes(id));
+    if (ids.length === 0) {
+      pushToast('请先勾选要批量采纳的建议。', 'error');
+      return;
+    }
+    setBatchBusy(true);
+    setBatchError(null);
+    try {
+      await flushSave();
+      const result = await api.batchAcceptProposals(currentDocument.id, ids, '本机审阅人');
+      applyDocument(result.document);
+      setBatchResult(result);
+      setSelectedProposalIds([]);
+      await refreshProposals();
+      const okCount = result.results.filter((item) => item.ok).length;
+      const failed = result.results.length - okCount;
+      pushToast(
+        `批量采纳完成：成功 ${okCount} 条${failed > 0 ? `，失败/冲突 ${failed} 条` : ''}。`,
+        failed > 0 ? 'error' : 'success',
+      );
+    } catch (error) {
+      setBatchError(errorMessage(error));
+      pushToast(`批量采纳失败：${errorMessage(error)}`, 'error');
+    } finally {
+      setBatchBusy(false);
+    }
+  }
+
+  function handleImpactExecuted(result: { plan: ImpactPlan; batch: BatchAcceptResult }): void {
+    applyDocument(result.batch.document);
+    void refreshProposals();
+    setSelectedProposalIds([]);
   }
 
   async function handleFault(fault: FaultKind): Promise<void> {
@@ -855,7 +1147,18 @@ export default function App() {
           setDataLevelBusy(false);
         }
       } else {
-        await runGenerate({ promptOverride: FAULT_PROMPT, fault, backendOverride: executor });
+        // 故障演练走真实模型网关：用非 mock 的当前 provider，确保能真实触发 429/5xx/网络/超时错误码。
+        const currentProviderId = status?.current?.providerId;
+        const realProvider: ProviderId =
+          currentProviderId && isProviderId(currentProviderId) && currentProviderId !== 'mock'
+            ? currentProviderId
+            : 'openai-compatible';
+        await runGenerate({
+          promptOverride: FAULT_PROMPT,
+          fault,
+          backendOverride: 'dsh',
+          providerOverride: realProvider,
+        });
       }
     } catch (error) {
       const info = toApiErrorInfo(error);
@@ -872,6 +1175,16 @@ export default function App() {
   // -------------------------------------------------------------------------
 
   const faultEnabled = status?.faultInjectionEnabled ?? true;
+  const effectiveProvider: ProviderId = executor === 'mock' ? 'mock' : provider;
+  const chapterTitles = document
+    ? Array.from(
+        new Set(
+          document.paragraphs
+            .map((paragraph) => paragraph.chapterTitle)
+            .filter((title) => typeof title === 'string' && title.length > 0),
+        ),
+      )
+    : [];
 
   return (
     <div className="app">
@@ -886,10 +1199,12 @@ export default function App() {
         status={status}
         exporting={exporting}
         dataLevelBusy={dataLevelBusy}
+        exportTemplate={exportTemplate}
         onOpenVersions={() => void openVersionDialog(null)}
         onExport={() => void handleExport()}
         onPreviewVersion={(versionId) => void openVersionDialog(versionId)}
         onChangeDataLevel={(level) => void handleChangeDataLevel(level)}
+        onChangeExportTemplate={setExportTemplate}
       />
 
       <div className="workspace">
@@ -905,6 +1220,8 @@ export default function App() {
           prompt={prompt}
           tier={tier}
           executor={executor}
+          provider={effectiveProvider}
+          mentions={mentions}
           generating={generating}
           activeRun={activeRun}
           activeKind={activeKind}
@@ -916,10 +1233,15 @@ export default function App() {
           faultResult={faultResult}
           onPromptChange={setPrompt}
           onTierChange={setTier}
-          onExecutorChange={setExecutor}
+          onExecutorChange={(next) => {
+            setExecutor(next);
+            if (next === 'mock') setProvider('mock');
+          }}
+          onProviderChange={setProvider}
           onGenerate={handleGenerate}
           onFillExample={() => setPrompt(EXAMPLE_PROMPT)}
-          onInsertReference={handleInsertReference}
+          onInsertMention={handleInsertMention}
+          onRemoveMention={handleRemoveMention}
           onUploadReference={(file) => void handleUploadReference(file)}
           onSelectProject={(projectId) => void handleSelectProject(projectId)}
           onRefreshStatus={() => void fetchStatus()}
@@ -944,28 +1266,84 @@ export default function App() {
             </div>
           ) : (
             <>
-              {saveState === 'error' && saveError ? (
-                <div className="status-banner is-error" data-testid="save-error-banner">
-                  <span>保存失败：{saveError}</span>
-                  <button type="button" className="btn btn-tiny" onClick={() => void enqueueSave()}>
-                    重试保存
-                  </button>
-                </div>
+              <div className="center-tabs" role="tablist" aria-label="中心工作区视图" data-testid="center-tabs">
+                {CENTER_TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      className={`center-tab${centerView === tab.id ? ' is-active' : ''}`}
+                      aria-selected={centerView === tab.id}
+                      data-testid={`center-tab-${tab.id}`}
+                      onClick={() => setCenterView(tab.id)}
+                    >
+                      <Icon size={14} />
+                      {tab.label}
+                      {tab.id === 'impact' && pendingProposalIds.length > 0 ? (
+                        <span className="center-tab-badge">{pendingProposalIds.length}</span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+                <span className="center-tabs-hint">P1/P2 面板与正文共享中心区</span>
+              </div>
+
+              <div
+                className={`center-view center-view-document${centerView === 'document' ? ' is-active' : ' is-hidden'}`}
+                data-testid="center-view-document"
+              >
+                {saveState === 'error' && saveError ? (
+                  <div className="status-banner is-error" data-testid="save-error-banner">
+                    <span>保存失败：{saveError}</span>
+                    <button type="button" className="btn btn-tiny" onClick={() => void enqueueSave()}>
+                      重试保存
+                    </button>
+                  </div>
+                ) : null}
+                {saveState === 'conflict' && saveError ? (
+                  <div className="status-banner is-warn" data-testid="save-conflict-banner">
+                    <span>{saveError}</span>
+                  </div>
+                ) : null}
+                <EditorPane
+                  key={document.id}
+                  initialContent={contentJson}
+                  contentToken={contentToken}
+                  contentToApply={contentJson}
+                  onReady={handleEditorReady}
+                  onUpdate={handleEditorUpdate}
+                  onContentApplied={handleContentApplied}
+                />
+              </div>
+
+              {centerView === 'diagrams' ? (
+                <DiagramPanel
+                  projectId={project?.id ?? null}
+                  documentRevision={document.revision}
+                  versions={versions}
+                  onToast={pushToast}
+                />
               ) : null}
-              {saveState === 'conflict' && saveError ? (
-                <div className="status-banner is-warn" data-testid="save-conflict-banner">
-                  <span>{saveError}</span>
-                </div>
+
+              {centerView === 'features' ? (
+                <FeaturePanel
+                  projectId={project?.id ?? null}
+                  chapters={chapterTitles}
+                  onToast={pushToast}
+                />
               ) : null}
-              <EditorPane
-                key={document.id}
-                initialContent={contentJson}
-                contentToken={contentToken}
-                contentToApply={contentJson}
-                onReady={handleEditorReady}
-                onUpdate={handleEditorUpdate}
-                onContentApplied={handleContentApplied}
-              />
+
+              {centerView === 'impact' ? (
+                <ImpactPanel
+                  documentId={document.id}
+                  documentRevision={document.revision}
+                  proposals={proposals}
+                  onExecuted={handleImpactExecuted}
+                  onToast={pushToast}
+                />
+              ) : null}
             </>
           )}
         </main>
@@ -975,10 +1353,23 @@ export default function App() {
           loading={proposalsLoading}
           error={proposalsError}
           busyProposalId={busyProposalId}
+          selectedProposalIds={selectedProposalIds}
+          batchBusy={batchBusy}
+          batchError={batchError}
+          batchResult={batchResult}
+          locateNotices={locateNotices}
+          onToggleSelect={handleToggleSelect}
+          onSelectAllPending={handleSelectAllPending}
+          onBatchAccept={() => void handleBatchAccept()}
+          onDismissBatchResult={() => {
+            setBatchResult(null);
+            setBatchError(null);
+          }}
           onAccept={(proposal) => void handleAccept(proposal)}
           onReject={(proposal) => void handleReject(proposal)}
           onDiscuss={(proposal, message) => void handleDiscuss(proposal, message)}
           onLocate={handleLocate}
+          onOpenCitation={setSourceCitation}
           onRefresh={() => void refreshProposals()}
         />
       </div>
@@ -990,11 +1381,20 @@ export default function App() {
         loading={versionsBusy}
         busy={versionsBusy || exporting}
         error={versionsError}
+        exportTemplate={exportTemplate}
         onClose={() => setVersionDialogOpen(false)}
         onRefresh={() => void handleRefreshVersions()}
         onCreate={(name) => void handleCreateVersion(name)}
         onRestore={(versionId) => void handleRestoreVersion(versionId)}
-        onExportVersion={(versionId) => void handleExport(versionId)}
+        onExportVersion={(versionId, template) => void handleExport(versionId, template)}
+        onChangeExportTemplate={setExportTemplate}
+      />
+
+      <SourceDialog
+        open={sourceCitation !== null}
+        projectId={project?.id ?? null}
+        citation={sourceCitation}
+        onClose={() => setSourceCitation(null)}
       />
 
       <Toasts toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((toast) => toast.id !== id))} />

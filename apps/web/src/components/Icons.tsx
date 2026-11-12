@@ -263,3 +263,96 @@ export function DocumentCheckIcon(props: IconProps) {
     </Svg>
   );
 }
+
+export function SearchIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4.5 4.5" />
+    </Svg>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m9 5 7 7-7 7" />
+    </Svg>
+  );
+}
+
+export function CopyIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V5a2 2 0 0 1 2-2h8" />
+    </Svg>
+  );
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      <path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
+      <path d="M10 11v6M14 11v6" />
+    </Svg>
+  );
+}
+
+export function EditIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z" />
+      <path d="m13.5 6.5 3 3" />
+    </Svg>
+  );
+}
+
+export function DiagramIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3" y="3" width="7" height="6" rx="1.2" />
+      <rect x="14" y="15" width="7" height="6" rx="1.2" />
+      <path d="M6.5 9v4a2 2 0 0 0 2 2H14" />
+      <path d="M17.5 15v-2a2 2 0 0 0-2-2h-2" />
+    </Svg>
+  );
+}
+
+export function FeatureListIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2" />
+    </Svg>
+  );
+}
+
+export function ImpactIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+      <path d="M5.6 5.6 7.8 7.8M16.2 16.2l2.2 2.2M18.4 5.6l-2.2 2.2M7.8 16.2l-2.2 2.2" />
+    </Svg>
+  );
+}
+
+export function LinkIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M10 13a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.6 1.6" />
+      <path d="M14 11a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.6-1.6" />
+    </Svg>
+  );
+}
+
+export function CheckSquareIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="2.5" />
+      <path d="m8 12 2.6 2.6L16.5 9" />
+    </Svg>
+  );
+}

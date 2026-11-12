@@ -1,6 +1,6 @@
 {
   "baseUrl": "http://127.0.0.1:8788",
-  "ranAt": "2026-11-12T00:48:30.557Z",
+  "ranAt": "2026-11-12T01:26:17.532Z",
   "results": [
     {
       "item": "启动方式",
@@ -25,12 +25,12 @@
     {
       "item": "Run 记录 latency/tokens（完成后已更新）",
       "ok": true,
-      "detail": "latency=33772ms tokens=1711/7196"
+      "detail": "latency=16052ms tokens=1713/3557"
     },
     {
       "item": "建议卡片带引用依据",
       "ok": true,
-      "detail": "citations=7"
+      "detail": "citations=6"
     },
     {
       "item": "采纳第 1 条",
@@ -70,7 +70,7 @@
     {
       "item": "导出 Word 下载",
       "ok": true,
-      "detail": "bytes=11643"
+      "detail": "bytes=11838"
     },
     {
       "item": "故障演练 429 分流",

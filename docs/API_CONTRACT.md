@@ -179,3 +179,101 @@
   保证 run 不会停留在 running；
   仅对只读阶段（生成/讨论）做有限重试，不做跨提供方自动上传。
 - `backend=mock` 为离线模拟执行器：确定性地产生 5 条提案用于本地演示/测试，UI 必须显示“模拟”。
+
+---
+
+# P1/P2 扩展契约（v1.1）
+
+> P0 契约（上文）保持不变；本节为 P1/P2 新增/扩展。字段类型见 `apps/server/src/types.ts`。
+
+## P1-1 引用资料定位（@ 章节/段落、locator + excerpt、来源打开）
+
+- 上传引用时服务端用 `domain/referenceSections.ts` 自动切分小节/段落并写入 `reference_sections`。
+- `GET /api/projects/:id/references` → `{ references: Reference[] }`（Reference 增加可选 `sectionCount`）。
+- `GET /api/projects/:id/references/locators?q=&limit=20` → `{ results: ReferenceLocatorResult[] }`
+  （跨本项目全部引用检索；返回 `referenceId/referenceTitle/sectionId/locator/excerpt`）。
+- `GET /api/projects/:id/references/:refId/sections` → `{ reference, sections: ReferenceSection[] }`
+  （按 `paragraphIndex` 升序；用于 @ 选择器与来源弹窗）。
+- `GET /api/projects/:id/references/:refId/sections/:sectionId` → `{ reference, section }`
+  （“卡片可点开来源”用；404 `not_found`）。
+
+## P1-2 批注定位闭环
+
+- 服务端无需新接口：Proposal 已含 `paragraphId/paragraphIndex/quote/chapterTitle`；
+  前端“定位”用 `paragraphId` 在编辑器 `data-paragraph-id` 中查找并高亮选中范围；
+  找不到（段落被删除/重建）时按 `paragraphIndex`/`quote` 文本兜底定位并给出“段落已变化”提示。
+- 冲突项（`status=conflicted`）定位到当前文档中对应段落（或兜底位置），高亮 conflict 样式。
+
+## P1-3 Provider 三选切换 / 故障与超时可见
+
+- `POST /api/documents/:id/proposals/generate` 与 `POST /api/proposals/:id/discuss` 新增可选：
+  - `provider?: 'openai-compatible' | 'deepseek-anthropic' | 'mock'`：选择模型提供方；不传用
+    `GET /api/status.current.providerId` 默认值；`backend=mock` 强制 mock provider。
+  - `referenceIds?: string[]`、`referenceSectionIds?: string[]`：只把指定引用/小节注入提示词；
+    必须属于本项目，否则 400 `validation_error`。
+- `ProviderStatus` 增加可选 `current: boolean`；`StatusResponse` 增加：
+  ```json
+  "current": {
+    "backend": "dsh|mock",
+    "providerId": "openai-compatible|deepseek-anthropic|mock",
+    "providerLabel": "...",
+    "providerKind": "...",
+    "model": "deepseek-flash",
+    "modelTimeoutMs": 60000,
+    "watchdogTimeoutMs": 90000,
+    "realModelConfigured": true
+  }
+  ```
+- 故障演练：fault ∈ `rate_limit | server_error | network | timeout | data_policy`（现有注入已支持
+  timeout；UI 五个按钮分别展示 `model_rate_limited / model_unavailable / model_timeout /
+  data_policy_blocked`）。
+- 运行记录（Run）必须体现所选 provider 与模型；Mock 运行/提案 UI 标注“模拟”。
+
+## P1-4 Codex 边界
+
+- 保持 `CodexExecutionBackend` 仅探测；`/api/status.backends` 中 codex 不可用并给出原因；
+  DSH fallback 的能力边界写入 `docs/DELIVERY.md`（不调开发机 shell、不提供 Codex 终端能力、
+  模型层可切换 provider）。
+
+## P2-5 Mermaid 图表（源码 + 渲染预览 + 版本绑定）
+
+- `GET /api/projects/:id/diagrams` → `{ diagrams: Diagram[] }`（按 updatedAt 倒序）。
+- `POST /api/projects/:id/diagrams` `{ title, kind?, source, description?, chapterRef?, versionId? }`
+  → `201 { diagram }`；默认绑定当前文档 `revision`（`versionName=null` 表示当前工作版本），
+  传 `versionId` 则绑定该命名版本的 `revision + name`。
+- `GET /api/diagrams/:id` → `{ diagram }`
+- `PUT /api/diagrams/:id` `{ title?, kind?, source?, description?, chapterRef?, versionId? }`
+  → `{ diagram }`；更新内容默认重新绑定当前 revision。
+- `POST /api/diagrams/:id/bind` `{ versionId }` → `{ diagram }`（显式绑定命名版本）
+- `DELETE /api/diagrams/:id` → `204`
+- 图表 `kind` ∈ `flowchart | architecture | sequence | class | state`；渲染在浏览器（mermaid 包），
+  服务端只保存源码，不执行/不信任渲染结果。
+
+## P2-6 功能清单（FeatureSpec）
+
+- `GET /api/projects/:id/features` → `{ features: FeatureSpec[] }`
+- `POST /api/projects/:id/features` `{ title, description?, status?, priority?, chapterRef?, diagramId? }`
+  → `201 { feature }`；status ∈ `planned|in_progress|done|dropped`，priority ∈ `P0|P1|P2`。
+- `PATCH /api/features/:id` → `{ feature }`；`DELETE /api/features/:id` → `204`。
+
+## P2-7 ImpactPlan（先展示影响再逐项执行）
+
+- `POST /api/documents/:id/impact-plan` `{ proposalIds?: string[], trigger?: string }`
+  → `201 { plan: ImpactPlan }`
+  - chapters：提案目标段落所在章节（按 `document.paragraphs.chapterIndex/chapterTitle` 聚合）。
+  - diagrams：`diagram.chapterRef` 命中受影响章节标题，或 `diagram.documentRevision < document.revision`
+    （绑定版本落后，需同步）。
+  - featureSpecs：`feature.chapterRef` 命中受影响章节，或 `feature.diagramId` 命中受影响图表。
+  - proposals：本次纳入计划的提案快照（默认=document 下所有 proposed/revised）。
+- `GET /api/impact-plans/:id` → `{ plan }`
+- `POST /api/impact-plans/:id/execute` `{ proposalIds?: string[] }`
+  → `{ plan, batch: BatchAcceptResult }`；执行=批量采纳，逐条失败不影响其余；成功后 `executedAt`。
+
+## P2-8 批量采纳与公文模板
+
+- `POST /api/documents/:id/proposals/batch-accept` `{ ids: string[], reviewer? }`
+  → `{ results: BatchAcceptItemResult[], document }`；逐条服务端校验/写入，单条 409/422 记录
+  `error` 不抛出；整体仍返回最新文档。
+- `GET /api/templates` → `{ templates: DocumentTemplateInfo[] }`（`gov` 政务公文 / `tech` 技术方案）。
+- `GET /api/documents/:id/export.docx?versionId=&template=gov|tech`；默认 `tech`。模板只影响
+  Word 版式/字体/标题样式，不改正文内容。

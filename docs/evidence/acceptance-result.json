@@ -1,6 +1,6 @@
 {
   "baseUrl": "http://127.0.0.1:8799",
-  "ranAt": "2026-11-12T00:47:34.433Z",
+  "ranAt": "2026-11-12T01:25:40.515Z",
   "results": [
     {
       "item": "启动方式",
@@ -25,12 +25,12 @@
     {
       "item": "§11.2 真实模型生成运行成功",
       "ok": true,
-      "detail": "status=succeeded backend=dsh provider=openai-compatible model=deepseek-flash latency=27959ms tokens=1715/6045 events=7"
+      "detail": "status=succeeded backend=dsh provider=openai-compatible model=deepseek-flash latency=24698ms tokens=1710/5080 events=7"
     },
     {
       "item": "§11.2 真实模型 provenance（非 Mock）",
       "ok": true,
-      "detail": "provider=openai-compatible model=deepseek-flash backend=dsh latency=27959ms tokens=1715/6045 proposalIds=prop_14b6bc4fa28f4a2f93c9,prop_43db98662e9e4a9da5cb,prop_520c3cc153ce42c99f9b,prop_63d08d276e7d4fa9865e,prop_f44cc0d2cf714ad9bda0"
+      "detail": "provider=openai-compatible model=deepseek-flash backend=dsh latency=24698ms tokens=1710/5080 proposalIds=prop_e9ed608a1f0e40b1b748,prop_6d1c33d43bfe4e278289,prop_04ae691eb1c147d9b3ae,prop_f9d94f2cafd04674a79a,prop_5218c7f3198b467d96ca"
     },
     {
       "item": "§11.2 五条建议卡片数据",
@@ -70,7 +70,7 @@
     {
       "item": "§11.4 人工编辑触发冲突",
       "ok": true,
-      "detail": "conflictedProposals=prop_f44cc0d2cf714ad9bda0"
+      "detail": "conflictedProposals=prop_5218c7f3198b467d96ca"
     },
     {
       "item": "§11.4 冲突提案禁止覆盖",
@@ -90,7 +90,7 @@
     {
       "item": "§11.5 导出 DOCX",
       "ok": true,
-      "detail": "bytes=11472 zip=true"
+      "detail": "bytes=11742 zip=true"
     },
     {
       "item": "§11.5 DOCX 可渲染（LibreOffice 引擎）",

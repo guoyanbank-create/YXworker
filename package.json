@@ -19,7 +19,9 @@
     "screenshots": "node scripts/screenshots.mjs",
     "seed": "pnpm --filter @yxworker/server seed",
     "acceptance": "node scripts/acceptance.mjs",
-    "verify:timeout": "node scripts/verify-timeout.mjs"
+    "verify:timeout": "node scripts/verify-timeout.mjs",
+    "acceptance:p1p2": "node scripts/acceptance-p1p2.mjs",
+    "test:e2e:p1p2": "node scripts/e2e-p1p2.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
