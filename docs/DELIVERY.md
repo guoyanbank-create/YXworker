@@ -30,6 +30,7 @@ pnpm start          # 首次自动构建；输出 http://127.0.0.1:8787
 | `pnpm build` | 前端 Vite 构建 + 服务端 `tsc` 均通过 |
 | `pnpm acceptance` | **§11 验收 29/29 通过**（真实网关；明细 `artifacts/acceptance/result.json`） |
 | `pnpm verify:timeout` | **硬超时 7/7 通过**（悬挂网关被 3s 硬超时终止，run 不悬挂；`artifacts/timeout/result.json`） |
+| `pnpm start`（清空 dist 后） | 自动构建并启动成功：`http://127.0.0.1:8787` 可访问、`/api/health` 200 |
 | `pnpm test:e2e` | UI 端到端（Playwright + 系统 Chrome，真实 dsh 生成）：见 **§2.1** |
 | DOCX 渲染验证 | `scripts/verify-docx.mjs`：LibreOffice 引擎渲染 2 页 PDF/PNG，`missingFonts=2`（字体回退，不影响阅读） |
 
