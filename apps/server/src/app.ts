@@ -1,7 +1,6 @@
 /** Express 应用装配：API 路由 + Web 静态资源 + 统一错误处理。 */
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import type { AppConfig } from './config.js';
 import type { Db } from './db.js';
 import { HttpError } from './errors.js';
@@ -59,7 +58,7 @@ export function createApp(deps: AppDeps): express.Express {
     app.use(express.static(deps.config.webDist, { index: false }));
     app.use((req, res, next) => {
       if (req.method !== 'GET' || req.path.startsWith('/api')) return next();
-      res.sendFile(join(deps.config.webDist, 'index.html'));
+      res.sendFile('index.html', { root: deps.config.webDist });
     });
   }
 
