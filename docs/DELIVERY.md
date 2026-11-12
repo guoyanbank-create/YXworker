@@ -131,8 +131,8 @@ run 可在 `running` 悬挂 3 分钟以上。排查与修复如下：
 | `pnpm test` | **143/143 通过**（17 个测试文件：P0 96 + P1 23 + P2 24） |
 | `pnpm build` | 前端（Vite，含 mermaid）+ 服务端 tsc 通过 |
 | `pnpm acceptance:p1p2` | **26/26 通过**（真实 openai-compatible + 真实 deepseek-anthropic；图表/清单/ImpactPlan/批量/模板） |
-| `pnpm test:e2e:p1p2` | **UI E2E（真实模型）**：结果见 `artifacts/e2e-p1p2/result.json` 与 `docs/evidence/` |
-| P0 回归 | `pnpm acceptance`、`pnpm test:e2e`、`pnpm verify:timeout` 仍全绿 |
+| `pnpm test:e2e:p1p2` | **19/19 通过**（真实 openai-compatible 模型：引用检索/提及/来源弹窗/定位高亮/Mock 标注/图表渲染+绑定/功能清单/批量采纳/ImpactPlan 展示+执行/模板导出/超时演练；明细 `artifacts/e2e-p1p2/result.json`） |
+| P0 回归 | `pnpm acceptance` **29/29**、`pnpm test:e2e` **17/17**、`pnpm verify:timeout` **7/7** 全绿 |
 
 > 说明：交付默认模型超时为 60s（缺陷修复要求）；本机网关延迟存在波动（实测 14–90s+）。
 > 验收/E2E 脚本在启动测试实例时设置 `YXWORKER_LLM_TIMEOUT_MS=180000` 以容忍抖动，

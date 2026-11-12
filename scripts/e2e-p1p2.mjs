@@ -245,26 +245,62 @@ async function main() {
     // ---------- P2-6 功能清单 ----------
     await page.click('[data-testid="center-tab-features"]');
     await page.waitForSelector('[data-testid="feature-panel"]', { timeout: 15_000 });
+    await page.waitForFunction(
+      () => document.querySelectorAll('[data-testid="feature-item"]').length >= 4,
+      null,
+      { timeout: 20_000 },
+    );
     const featureBefore = await page.locator('[data-testid="feature-item"]').count();
     await page.click('[data-testid="btn-add-feature"]');
     await page.fill('[data-testid="feature-new-title-input"]', 'E2E 验收功能');
     await page.fill('[data-testid="feature-new-description-input"]', 'P1/P2 UI E2E 自动创建');
     await page.click('[data-testid="btn-save-feature"]');
-    await page.waitForTimeout(1200);
+    await page.waitForFunction(
+      (expected) => document.querySelectorAll('[data-testid="feature-item"]').length === expected,
+      featureBefore + 1,
+      { timeout: 20_000 },
+    ).catch(() => null);
     const featureAfter = await page.locator('[data-testid="feature-item"]').count();
     record('P2-6 功能清单新增', featureAfter === featureBefore + 1, `${featureBefore}→${featureAfter}`);
     await shot('09-features');
 
+    // ---------- P2-8 批量采纳（先于 Impact 执行，保证有待审提案可批量采纳）----------
+    await page.click('[data-testid="center-tab-document"]');
+    await page.waitForTimeout(500);
+    const selectable = await page.locator('[data-testid="batch-select"]').count();
+    if (selectable > 0) {
+      // 复选框可能位于 label 内，用原生 click 避免二次激活
+      await page.locator('[data-testid="batch-select"]').first().evaluate((el) => el.click());
+      await page.waitForTimeout(300);
+      const selectedBoxes = await page.locator('[data-testid="batch-select"]:checked').count();
+      await page.click('[data-testid="btn-batch-accept"]');
+      await page.waitForSelector('[data-testid="batch-results"], [data-testid="batch-results-summary"]', { timeout: 90_000 });
+      const batchItems = await page.locator('[data-testid="batch-result-item"]').count();
+      record('P2-8 批量采纳逐条结果', selectedBoxes > 0 && batchItems > 0, `checked=${selectedBoxes} results=${batchItems}`);
+    } else {
+      record('P2-8 批量采纳逐条结果', false, '当前无待审提案可批量采纳');
+    }
+    await shot('12-batch-accept');
+
     // ---------- P2-7 ImpactPlan ----------
     await page.click('[data-testid="center-tab-impact"]');
     await page.waitForSelector('[data-testid="impact-panel"]', { timeout: 15_000 });
-    const selectItems = await page.locator('[data-testid="impact-select-item"]').count();
-    const selectCount = Math.min(3, selectItems);
-    for (let i = 0; i < selectCount; i += 1) {
-      await page.locator('[data-testid="impact-select-item"]').nth(i).check();
-    }
+    await page.waitForFunction(
+      () => document.querySelectorAll('[data-testid="impact-select-item"]').length >= 1,
+      null,
+      { timeout: 20_000 },
+    );
+    // 复选框在 <label> 内，直接 .check() 可能被 label 二次激活导致状态不变；用“全选”按钮一次性选择。
+    await page.locator('[data-testid="impact-panel"] button', { hasText: '全选' }).first().click();
+    await page.waitForTimeout(400);
+    const selectedCount = await page.locator('[data-testid="impact-select-item"]:checked').count();
+    record('P2-7 影响分析可勾选待审提案', selectedCount >= 1, `selected=${selectedCount}`);
     await page.click('[data-testid="btn-build-impact"]');
-    await page.waitForSelector('[data-testid="impact-plan"]', { timeout: 20_000 });
+    // impact-plan 容器始终存在（空态）；等真实结果项出现再断言
+    await page
+      .waitForSelector('[data-testid="impact-chapter"]', { timeout: 20_000 })
+      .catch(() => null);
+    await page.waitForTimeout(300);
     const chapterHits = await page.locator('[data-testid="impact-chapter"]').count();
     const diagramHits = await page.locator('[data-testid="impact-diagram"]').count();
     const featureHits = await page.locator('[data-testid="impact-feature"]').count();
@@ -275,21 +311,6 @@ async function main() {
     const executedItems = await page.locator('[data-testid="impact-result-item"]').count();
     record('P2-7 ImpactPlan 逐项执行', executedItems > 0, `resultItems=${executedItems}`);
     await shot('11-impact-executed');
-
-    // ---------- P2-8 批量采纳 ----------
-    await page.click('[data-testid="center-tab-document"]');
-    await page.waitForTimeout(500);
-    const selectable = await page.locator('[data-testid="batch-select"]').count();
-    if (selectable > 0) {
-      await page.locator('[data-testid="batch-select"]').first().check();
-      await page.click('[data-testid="btn-batch-accept"]');
-      await page.waitForSelector('[data-testid="batch-results"], [data-testid="batch-results-summary"]', { timeout: 90_000 });
-      const batchItems = await page.locator('[data-testid="batch-result-item"]').count();
-      record('P2-8 批量采纳逐条结果', batchItems > 0, `results=${batchItems}`);
-    } else {
-      record('P2-8 批量采纳逐条结果', true, '当前无待审提案可批量采纳（Impact 已全部处理）');
-    }
-    await shot('12-batch-accept');
 
     // ---------- P2-8 模板导出 ----------
     await page.selectOption('[data-testid="template-select"]', 'gov');
