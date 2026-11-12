@@ -8,7 +8,7 @@
 - 架构与 P0 技术决策：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - API 契约：[docs/API_CONTRACT.md](docs/API_CONTRACT.md)
 - P0 交付与验收对照：[docs/DELIVERY.md](docs/DELIVERY.md)
-- 阶段 0 勘察报告：见 [PR #2](https://github.com/guoyanbank-create/YXworker/pull/2)
+- 阶段 0 勘察报告：[docs/INVESTIGATION.md](docs/INVESTIGATION.md)、[docs/LICENSE_NOTES.md](docs/LICENSE_NOTES.md)
 
 ## 交付形态
 
@@ -77,3 +77,6 @@ pnpm seed           # 重新写入演示数据（幂等）
   30s”运行看门狗兜底，run 不会停留在 running；超时可见 `model_timeout`/`latencyMs`/`retryReason`。
 - 真实与 Mock 的区分：Mock 提案在 UI 显示“模拟”徽章、`provider=mock`；真实模型提案显示 `DSH`
   与模型名（如 `deepseek-flash`），运行记录含 provider/model/latency/tokens。
+
+阶段 0（仓库勘察）已完成并合并：勘察报告见 [docs/INVESTIGATION.md](docs/INVESTIGATION.md)，许可记录见 [docs/LICENSE_NOTES.md](docs/LICENSE_NOTES.md)。
+
