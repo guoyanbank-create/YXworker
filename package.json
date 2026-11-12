@@ -1,0 +1,27 @@
+{
+  "name": "yxworker",
+  "version": "0.1.0-p0",
+  "private": true,
+  "description": "AI 项目方案工作台（YXworker）P0",
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=24.9.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @yxworker/server --filter @yxworker/web dev",
+    "dev:server": "pnpm --filter @yxworker/server dev",
+    "dev:web": "pnpm --filter @yxworker/web dev",
+    "build": "pnpm --filter @yxworker/web build && pnpm --filter @yxworker/server build",
+    "start": "node apps/server/dist/index.js",
+    "test": "pnpm --filter @yxworker/server test",
+    "test:e2e": "node scripts/e2e.mjs",
+    "screenshots": "node scripts/screenshots.mjs",
+    "seed": "pnpm --filter @yxworker/server seed"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
