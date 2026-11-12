@@ -1,0 +1,122 @@
+{
+  "ranAt": "2026-11-12T00:47:01.618Z",
+  "results": [
+    {
+      "item": "服务启动",
+      "ok": true,
+      "detail": "http://127.0.0.1:18794"
+    },
+    {
+      "item": "悬挂请求被硬超时终止（不会停留在 running）",
+      "ok": true,
+      "detail": "elapsed=3058ms status=failed"
+    },
+    {
+      "item": "错误码映射 model_timeout",
+      "ok": true,
+      "detail": "code=model_timeout"
+    },
+    {
+      "item": "latencyMs 已写入（非 0）",
+      "ok": true,
+      "detail": "latencyMs=3007"
+    },
+    {
+      "item": "retryReason 可见",
+      "ok": true,
+      "detail": "retryReason=provider_timeout"
+    },
+    {
+      "item": "事件链完整（含失败事件）",
+      "ok": true,
+      "detail": "events=5"
+    },
+    {
+      "item": "超时失败不产生提案",
+      "ok": true,
+      "detail": "proposals=0"
+    }
+  ],
+  "failures": 0,
+  "run": {
+    "id": "run_f2a82225cb9646739a4d",
+    "projectId": "prj_3ec773a0ad724031b013",
+    "documentId": "doc_6ae85347a1bf4ff59d64",
+    "type": "proposal_generation",
+    "status": "failed",
+    "backend": "dsh",
+    "provider": "openai-compatible",
+    "model": "deepseek-flash",
+    "tier": "review",
+    "prompt": "引用历史方案与技术说明，对第三章提出5条修改建议；仅出建议。",
+    "error": {
+      "code": "model_timeout",
+      "message": "模型网关请求超时（默认 60s）",
+      "retryable": true
+    },
+    "events": [
+      {
+        "seq": 1,
+        "at": "2026-11-12T00:46:58.556Z",
+        "level": "info",
+        "message": "已创建运行任务（排队中）",
+        "data": {
+          "type": "proposal_generation",
+          "backend": "dsh",
+          "provider": "openai-compatible",
+          "model": "deepseek-flash",
+          "tier": "review"
+        }
+      },
+      {
+        "seq": 2,
+        "at": "2026-11-12T00:46:58.556Z",
+        "level": "info",
+        "message": "执行器开始执行"
+      },
+      {
+        "seq": 3,
+        "at": "2026-11-12T00:46:58.557Z",
+        "level": "info",
+        "message": "执行器开始执行生成任务",
+        "data": {
+          "backend": "dsh",
+          "provider": "openai-compatible",
+          "model": "deepseek-flash",
+          "tier": "review",
+          "targetChapterIndex": 2
+        }
+      },
+      {
+        "seq": 4,
+        "at": "2026-11-12T00:46:58.557Z",
+        "level": "info",
+        "message": "调用模型提供方 openai-compatible（model=deepseek-flash）",
+        "data": {
+          "provider": "openai-compatible",
+          "model": "deepseek-flash",
+          "tier": "review",
+          "mock": false
+        }
+      },
+      {
+        "seq": 5,
+        "at": "2026-11-12T00:47:01.563Z",
+        "level": "error",
+        "message": "运行失败：model_timeout",
+        "data": {
+          "code": "model_timeout",
+          "retryable": true
+        }
+      }
+    ],
+    "latencyMs": 3007,
+    "tokensIn": 0,
+    "tokensOut": 0,
+    "retryReason": "provider_timeout",
+    "fallbackFrom": null,
+    "dataPolicyId": "default",
+    "createdAt": "2026-11-12T00:46:58.556Z",
+    "updatedAt": "2026-11-12T00:47:01.563Z"
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "capturedAt": "2026-11-12T00:49:06.913Z",
+  "baseUrl": "http://127.0.0.1:8787",
+  "deployment": "pnpm start (127.0.0.1:8787, 本机单用户)",
+  "project": {
+    "id": "prj_041233c27ef84644a5cf",
+    "name": "智惠导服智能问答优化"
+  },
+  "document": {
+    "id": "doc_612111256dd846d7a482"
+  },
+  "run": {
+    "id": "run_e72247d5cc3748af88ff",
+    "type": "proposal_generation",
+    "status": "succeeded",
+    "backend": "dsh",
+    "provider": "openai-compatible",
+    "model": "deepseek-flash",
+    "tier": "review",
+    "latencyMs": 21081,
+    "tokensIn": 1712,
+    "tokensOut": 4461,
+    "error": null,
+    "events": [
+      {
+        "seq": 1,
+        "level": "info",
+        "message": "已创建运行任务（排队中）"
+      },
+      {
+        "seq": 2,
+        "level": "info",
+        "message": "执行器开始执行"
+      },
+      {
+        "seq": 3,
+        "level": "info",
+        "message": "执行器开始执行生成任务"
+      },
+      {
+        "seq": 4,
+        "level": "info",
+        "message": "调用模型提供方 openai-compatible（model=deepseek-flash）"
+      },
+      {
+        "seq": 5,
+        "level": "info",
+        "message": "生成 5 条提案，已通过服务端 Schema 与段落校验"
+      },
+      {
+        "seq": 6,
+        "level": "info",
+        "message": "已生成 5 条提案"
+      },
+      {
+        "seq": 7,
+        "level": "info",
+        "message": "运行完成"
+      }
+    ]
+  },
+  "proposals": [
+    {
+      "id": "prop_bf184acc38ad4b158c6b",
+      "status": "proposed",
+      "chapterTitle": "第三章 功能拆解与实施路径",
+      "paragraphId": "p_013",
+      "backend": "dsh",
+      "provider": "openai-compatible",
+      "model": "deepseek-flash",
+      "citations": [
+        {
+          "referenceId": "ref_f5525444bad4465d8a77",
+          "title": "智惠导服智能问答优化历史方案（2025 版）",
+          "locator": "第 2 节 试点范围",
+          "excerpt": "试点先覆盖 20 个高频事项与 3 类咨询场景，参与坐席不超过 15 人；试点期间不改变对外服务入口，仅作为坐席辅助工具运行。"
+        }
+      ],
+      "newText": "智能问答入口按办事咨询、材料准备、进度查询三类场景拆分，每类场景配置独立的提示词模板与转人工阈值；试点阶段先覆盖 20 个高频事项与上述 3 类咨询场景，不改变对外服务入口，仅作为坐席辅助工具运行。",
+      "reason": "历史方案第 2 节“试点范围”明确试点覆盖 20 个高频事项与 3 类咨询场景、参与坐席不超过 15 人，且试点期间不改变对外服务入口、仅作为坐席辅助工具运行。功能拆解处只写场景分类而未写试点边界，容易使实施路径与功能范围脱节，建议在此补明试点边界。"
+    },
+    {
+      "id": "prop_490ed2383ab24bba83bc",
+      "status": "proposed",
+      "chapterTitle": "第三章 功能拆解与实施路径",
+      "paragraphId": "p_015",
+      "backend": "dsh",
+      "provider": "openai-compatible",
+      "model": "deepseek-flash",
+      "citations": [
+        {
+          "referenceId": "ref_a8aced966d2b44d4a8ab",
+          "title": "技术说明：知识库检索与模型网关接入要求",
+          "locator": "第 1 节 检索链路",
+          "excerpt": "重排阶段优先保证政策原文片段，问答对仅用于补充召回。检索结果必须携带来源标识（文档 id、版本、小节位置），供回答引用。"
+        }
+      ],
+      "newText": "检索链路采用“关键词召回 + 向量召回 + 重排”的组合方式，重排阶段优先保证政策原文片段，问答对仅用于补充召回，检索结果统一携带来源标识（文档 id、版本、小节位置）供回答引用。",
+      "reason": "技术说明第 1 节“检索链路”指出重排阶段优先保证政策原文片段、问答对仅用于补充召回，并要求检索结果必须携带来源标识（文档 id、版本、小节位置）供回答引用。原文把“优先保证政策原文”放在召回环节，与检索链路的实际分工不符，且缺少来源标识要求，会影响后续回答附带引用。"
+    },
+    {
+      "id": "prop_22eeb32d59af42d289e6",
+      "status": "proposed",
+      "chapterTitle": "第三章 功能拆解与实施路径",
+      "paragraphId": "p_016",
+      "backend": "dsh",
+      "provider": "openai-compatible",
+      "model": "deepseek-flash",
+      "citations": [
+        {
+          "referenceId": "ref_a8aced966d2b44d4a8ab",
+          "title": "技术说明：知识库检索与模型网关接入要求",
+          "locator": "第 2 节 模型网关",
+          "excerpt": "密钥只允许保存在服务端，禁止写入仓库、日志或数据库明文。"
+        }
+      ],
+      "newText": "模型接入层统一由服务端转发请求，密钥仅保存在服务端环境变量中，前端不接触模型端点，也不在浏览器存储中保存任何凭据；密钥禁止写入仓库、日志或数据库明文，结构化输出由服务端按 JSON Schema 校验并在失败时重试修复。",
+      "reason": "技术说明第 2 节“模型网关”要求密钥只允许保存在服务端，禁止写入仓库、日志或数据库明文；同时说明网关支持 json_object 但不支持 json_schema，提案生成必须由服务端做 JSON Schema 校验与重试修复。原文只约束前端与环境变量，未覆盖日志、数据库等泄露面，也未写结构化输出校验。"
+    },
+    {
+      "id": "prop_570ace11696a45029df0",
+      "status": "proposed",
+      "chapterTitle": "第三章 功能拆解与实施路径",
+      "paragraphId": "p_017",
+      "backend": "dsh",
+      "provider": "openai-compatible",
+      "model": "deepseek-flash",
+      "citations": [
+        {
+          "referenceId": "ref_f5525444bad4465d8a77",
+          "title": "智惠导服智能问答优化历史方案（2025 版）",
+          "locator": "第 4 节 风险与约束",
+          "excerpt": "模型输出必须附带引用来源；敏感信息不得进入外部模型；模型网关不可用时必须降级为人工，不能以无依据内容冒充回答。"
+        },
+        {
+          "referenceId": "ref_a8aced966d2b44d4a8ab",
+          "title": "技术说明：知识库检索与模型网关接入要求",
+          "locator": "第 3 节 数据分级",
+          "excerpt": "secret 材料一律禁止出域，包含敏感字段的请求必须在服务端拦截并记录错误码。"
+        }
+      ],
+      "newText": "审核与兜底机制要求所有回答附带引用来源；当检索置信度低于阈值或模型网关不可用时，系统主动转人工，不生成无依据的回答；secret 级材料一律禁止出域，包含敏感字段的请求在服务端拦截并记录错误码。",
+      "reason": "历史方案第 4 节“风险与约束”要求模型输出必须附带引用来源、敏感信息不得进入外部模型、模型网关不可用时必须降级为人工；技术说明第 3 节“数据分级”明确 secret 材料一律禁止出域，包含敏感字段的请求必须在服务端拦截并记录错误码。原文兜底触发条件只覆盖检索置信度，缺少网关不可用降级与数据分级约束。"
+    },
+    {
+      "id": "prop_12c7887b240644bdbe2a",
+      "status": "proposed",
+      "chapterTitle": "第三章 功能拆解与实施路径",
+      "paragraphId": "p_018",
+      "backend": "dsh",
+      "provider": "openai-compatible",
+      "model": "deepseek-flash",
+      "citations": [
+        {
+          "referenceId": "ref_f5525444bad4465d8a77",
+          "title": "智惠导服智能问答优化历史方案（2025 版）",
+          "locator": "第 4 节 风险与约束",
+          "excerpt": "灰度发布按 10%、30%、100% 三档推进，出现异常可在一键回滚。"
+        }
+      ],
+      "newText": "实施路径分为试点、扩面、稳定三个阶段，每个阶段设置明确的准入指标与责任人，未达到指标不进入下一阶段；扩面按 10%、30%、100% 三档灰度推进，出现异常可一键回滚。",
+      "reason": "历史方案第 4 节“风险与约束”给出灰度发布按 10%、30%、100% 三档推进、出现异常可一键回滚的发布控制要求。实施路径只写阶段准入而未写发布节奏与回滚能力，建议补齐，使阶段准入与灰度发布控制相衔接。"
+    }
+  ]
+}

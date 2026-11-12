@@ -72,3 +72,8 @@ pnpm seed           # 重新写入演示数据（幂等）
   外部域名按交付形态要求不做。
 - Codex 未安装，`CodexExecutionBackend` 仅保留接口与不可用探测，不声称已接入。
 - Word 导出用 LibreOffice 引擎渲染校验；本机无 Microsoft Office/WPS，未做其原生人工检查。
+- 真实模型依赖本机网关：凭据缺失时真实执行器显示“未配置”，模拟执行器（UI 标注“模拟”）仍可
+  离线演示；模型调用默认 **60s 硬超时**（`YXWORKER_LLM_TIMEOUT_MS` 可覆盖），并有“模型超时 +
+  30s”运行看门狗兜底，run 不会停留在 running；超时可见 `model_timeout`/`latencyMs`/`retryReason`。
+- 真实与 Mock 的区分：Mock 提案在 UI 显示“模拟”徽章、`provider=mock`；真实模型提案显示 `DSH`
+  与模型名（如 `deepseek-flash`），运行记录含 provider/model/latency/tokens。

@@ -94,7 +94,15 @@ async function startServer() {
   const log = createWriteStream(logPath);
   server = spawn(process.execPath, [join(root, 'apps/server/dist/index.js')], {
     cwd: root,
-    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', YXWORKER_DATA_DIR: tempDataDir },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      HOST: '127.0.0.1',
+      YXWORKER_DATA_DIR: tempDataDir,
+      ...(process.env.YXWORKER_LLM_TIMEOUT_MS
+        ? { YXWORKER_LLM_TIMEOUT_MS: process.env.YXWORKER_LLM_TIMEOUT_MS }
+        : {}),
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   server.stdout.pipe(log);
@@ -143,6 +151,19 @@ async function main() {
   const proposalsRes = await http(`/api/documents/${documentId}/proposals`);
   const proposals = proposalsRes.body.proposals.filter((p) => p.runId === run.id);
   const ch3 = proposals.filter((p) => p.chapterTitle.includes('第三章'));
+  record(
+    '§11.2 真实模型 provenance（非 Mock）',
+    run.provider === 'openai-compatible' &&
+      run.model === 'deepseek-flash' &&
+      run.backend === 'dsh' &&
+      run.latencyMs > 0 &&
+      (run.tokensIn > 0 || run.tokensOut > 0) &&
+      proposals.every(
+        (p) => p.backend === 'dsh' && p.provider === 'openai-compatible' && p.model === 'deepseek-flash',
+      ),
+    `provider=${run.provider} model=${run.model} backend=${run.backend} latency=${run.latencyMs}ms tokens=${run.tokensIn}/${run.tokensOut} proposalIds=${proposals.map((p) => p.id).join(',')}`,
+  );
+
   record(
     '§11.2 五条建议卡片数据',
     proposals.length === 5 && ch3.length >= 4 && proposals.every((p) => p.citations.length > 0 && p.oldText && p.newText && p.reason),
@@ -208,6 +229,7 @@ async function main() {
     baseRevision: docBeforeManual.revision,
     actor: '人工编辑',
   });
+  const docAfterManualSave = manualSave.body.document ?? (await http(`/api/documents/${documentId}`)).body.document;
   const conflictedIds = (manualSave.body.conflictedProposals ?? []).map((p) => p.id);
   const afterManual = (await http(`/api/proposals/${pendingId}`)).body.proposal;
   record(
@@ -219,7 +241,7 @@ async function main() {
   const docAfterConflictAttempt = (await http(`/api/documents/${documentId}`)).body.document;
   record(
     '§11.4 冲突提案禁止覆盖',
-    [409, 422].includes(acceptConflicted.status) && docAfterConflictAttempt.revision === docAfterManual.revision,
+    [409, 422].includes(acceptConflicted.status) && docAfterConflictAttempt.revision === docAfterManualSave.revision,
     `accept status=${acceptConflicted.status} code=${acceptConflicted.body?.error?.code} revision不变`,
   );
 
@@ -246,7 +268,8 @@ async function main() {
   const render = spawnSync(process.execPath, [join(root, 'scripts/verify-docx.mjs'), docxPath, join(artifactsDir, 'render')], { encoding: 'utf8' });
   let renderInfo = null;
   try {
-    renderInfo = JSON.parse(render.stdout.trim().split('\n').slice(-1)[0] ?? 'null');
+    const jsonStart = render.stdout.indexOf('{');
+    renderInfo = jsonStart >= 0 ? JSON.parse(render.stdout.slice(jsonStart)) : null;
   } catch {
     renderInfo = null;
   }
@@ -254,6 +277,23 @@ async function main() {
     '§11.5 DOCX 可渲染（LibreOffice 引擎）',
     render.status === 0 && renderInfo && renderInfo.pageFiles.length > 0,
     renderInfo ? `pages=${renderInfo.pageFiles.length} missingFonts=${renderInfo.missingFonts.length}` : `render exit=${render.status}`,
+  );
+
+  // §11.1 补充：把导出的 DOCX 作为引用资料上传，验证 DOCX 提取链路（mammoth）
+  const referencesBefore = (await http(`/api/projects/${project.id}/references`)).body.references.length;
+  const form = new FormData();
+  form.append(
+    'file',
+    new Blob([exportRes.body], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+    '历史方案-DOCX导入验证.docx',
+  );
+  const uploadRes = await fetch(`${baseUrl}/api/projects/${project.id}/references`, { method: 'POST', body: form });
+  const uploadBody = await uploadRes.json();
+  const referencesAfter = (await http(`/api/projects/${project.id}/references`)).body.references.length;
+  record(
+    '§11.1 DOCX 引用上传与提取',
+    uploadRes.status === 201 && referencesAfter === referencesBefore + 1 && (uploadBody.reference?.charCount ?? 0) > 100,
+    `status=${uploadRes.status} charCount=${uploadBody.reference?.charCount}`,
   );
 
   // §11.6 真实模型请求证据 + 模拟执行器兜底（Codex 不要求）
@@ -303,6 +343,7 @@ async function main() {
   await faultCase('rate_limit', ['model_rate_limited'], '§11.7 模拟 429');
   await faultCase('server_error', ['model_unavailable'], '§11.7 模拟 500');
   await faultCase('network', ['model_unavailable', 'model_timeout'], '§11.7 模拟断网');
+  await faultCase('timeout', ['model_timeout'], '§11.7 模拟超时（run 不得悬挂）');
   await json('PATCH', `/api/projects/${project.id}`, { dataLevel: 'secret' });
   const policyFault = await json('POST', `/api/documents/${documentId}/proposals/generate`, {
     prompt: '第三章给出 5 条修改建议',

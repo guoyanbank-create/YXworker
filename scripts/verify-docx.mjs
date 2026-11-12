@@ -7,7 +7,7 @@
  * 环境变量：LIBREOFFICE_KIT_PATH 可显式指定 @deepseek-ai/libreoffice-kit 的 lib/index.js。
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -16,7 +16,7 @@ function resolveKit() {
   const candidates = [];
   if (process.env.LIBREOFFICE_KIT_PATH) candidates.push(process.env.LIBREOFFICE_KIT_PATH);
   try {
-    const globalRoot = execFileSync('pnpm', ['root', '-g'], { encoding: 'utf8' }).trim();
+    const globalRoot = execFileSync('pnpm', ['root', '-g'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     candidates.push(join(globalRoot, '@deepseek-ai/libreoffice-kit/lib/index.js'));
     candidates.push(join(globalRoot, 'node_modules/@deepseek-ai/libreoffice-kit/lib/index.js'));
   } catch {
@@ -53,6 +53,8 @@ const kit = await import(pathToFileURL(kitPath).href);
 const converter = await kit.createConverter({ timeoutMs: 180_000 });
 try {
   const imagesDir = join(outputDir, 'pages');
+  mkdirSync(outputDir, { recursive: true });
+  rmSync(imagesDir, { recursive: true, force: true });
   const images = await converter.renderImages({
     inputPath,
     outputDir: imagesDir,
