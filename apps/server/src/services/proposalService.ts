@@ -8,7 +8,7 @@
  *   documents 路由直接调用。
  * - 密钥/上游响应正文/文档全文不写入日志或数据库（Run 只记录 code/耗时/token）。
  */
-import type { AppConfig, TierName } from '../config.js';
+import type { AppConfig } from '../config.js';
 import { newId, nowIso, transaction } from '../db.js';
 import type { Db } from '../db.js';
 import {
@@ -18,7 +18,7 @@ import {
 } from '../domain/paragraphs.js';
 import { conflict, notFound, unprocessable } from '../errors.js';
 import { chapterIndexFromPrompt } from '../llm/schema.js';
-import { MOCK_MODEL, MOCK_TARGET_CHAPTER_INDEX } from '../llm/mockProvider.js';
+import { MOCK_TARGET_CHAPTER_INDEX } from '../llm/mockProvider.js';
 import { toRunError, LlmError } from '../llm/types.js';
 import type {
   DiscussionOutput,
@@ -27,7 +27,6 @@ import type {
   ProposalGenerationRequest,
   ReferenceMaterial,
 } from '../llm/types.js';
-import { parseLocators } from '../llm/reference.js';
 import { createRuntimeRegistry } from '../runtime/registry.js';
 import type {
   DiscussionTask,
@@ -46,6 +45,10 @@ import type {
   RunType,
 } from '../types.js';
 import { getDocument, replaceDocumentContent } from './documentsService.js';
+import {
+  referenceMaterialsForProject,
+  type ReferenceSelectionInput,
+} from './referencesService.js';
 import * as runService from './runService.js';
 
 /* ------------------------------------------------------------------ *
@@ -224,23 +227,42 @@ export function getProjectBrief(db: Db, projectId: string): ProjectBrief | null 
   };
 }
 
-/** 项目引用材料（含正文，仅在服务端内存中使用；不返回给前端）。 */
-export function referencesForProject(db: Db, projectId: string): ReferenceMaterial[] {
-  const rows = db
-    .prepare(
-      'SELECT id, title, content_text FROM references_docs WHERE project_id = ? ORDER BY created_at ASC, rowid ASC',
-    )
-    .all(projectId) as unknown as Array<{
-    id: string;
-    title: string;
-    content_text: string;
-  }>;
-  return rows.map((row) => ({
-    id: row.id,
-    title: row.title,
-    content: row.content_text,
-    locators: parseLocators(row.content_text),
-  }));
+/**
+ * 项目引用材料（含正文，仅在服务端内存中使用；不返回给前端）。
+ * P1：统一由 referencesService 提供（带小节 locator，支持 referenceIds/referenceSectionIds 过滤）。
+ */
+export function referencesForProject(
+  db: Db,
+  projectId: string,
+  selection: ReferenceSelectionInput = {},
+): ReferenceMaterial[] {
+  return referenceMaterialsForProject(db, projectId, selection);
+}
+
+/** 生成/讨论请求中的引用过滤参数（P1）。 */
+export interface ReferenceFilter {
+  referenceIds?: string[];
+  referenceSectionIds?: string[];
+}
+
+/** 路由层校验引用/小节归属：不属于本项目 → 400 validation_error（不创建 Run）。 */
+export function assertReferenceSelection(
+  db: Db,
+  projectId: string,
+  filter: ReferenceFilter,
+): void {
+  referenceMaterialsForProject(db, projectId, filter);
+}
+
+/** 生成请求（P1 扩展 provider 与引用过滤；其余字段沿用 P0 契约）。 */
+export interface ServiceGenerationRequest extends ProposalGenerationRequest, ReferenceFilter {
+  /** 请求选择的 provider；不传用服务端默认（P0 语义：默认真实网关）。 */
+  provider?: string;
+}
+
+/** 讨论请求（P1 扩展 provider 与引用过滤）。 */
+export interface ServiceDiscussionRequest extends ProposalDiscussionRequest, ReferenceFilter {
+  provider?: string;
 }
 
 /* ------------------------------------------------------------------ *
@@ -691,7 +713,7 @@ export interface StartGenerationInput {
   run: Run;
   project: ProjectBrief;
   document: Document;
-  request: ProposalGenerationRequest;
+  request: ServiceGenerationRequest;
 }
 
 /** 创建 Run 之后调用：异步执行生成，立即返回（HTTP 202）。 */
@@ -737,10 +759,13 @@ async function executeGeneration(
         model: run.model,
         tier: request.tier,
         targetChapterIndex: resolveTargetChapterIndex(run.backend, request.prompt),
+        referenceIds: request.referenceIds ?? null,
+        referenceSectionIds: request.referenceSectionIds ?? null,
       },
     });
 
-    assertProjectAllowsExternalModel(project, run.backend);
+    // 离线 mock provider 不产生外发：secret 项目在 mock 链路下仍可运行（P0 §4.5 语义按“外发”判定）。
+    assertProjectAllowsExternalModel(project, run.provider === 'mock' ? 'mock' : run.backend);
     try {
       maybeInjectFault(config, request.fault, emit);
     } catch (error) {
@@ -749,12 +774,8 @@ async function executeGeneration(
     }
 
     const registry = createRuntimeRegistry(config);
-    const backend = registry.byId(run.backend);
-    if (!backend) {
-      throw new LlmError('backend_unavailable', `执行器 ${run.backend} 不存在`, {
-        retryable: false,
-      });
-    }
+    // 执行器绑定 Run 记录的 provider（路由解析并写入 Run；backend=mock 时强制 mock provider）。
+    const backend = registry.executionBackend(run.backend, run.provider);
     const targetChapterIndex = resolveTargetChapterIndex(run.backend, request.prompt);
     const task: ExecutionTask = {
       type: 'proposal_generation',
@@ -767,7 +788,11 @@ async function executeGeneration(
       targetChapterIndex,
       chapterTitle: documentChapterTitle(document.paragraphs, targetChapterIndex),
       blocks: document.paragraphs,
-      references: referencesForProject(db, document.projectId),
+      // P1：只注入选中的引用/小节（未传=全部）。
+      references: referencesForProject(db, document.projectId, {
+        referenceIds: request.referenceIds,
+        referenceSectionIds: request.referenceSectionIds,
+      }),
     };
 
     if (runService.findRun(db, run.id)?.status === 'cancelled' || controller.signal.aborted) return;
@@ -831,7 +856,7 @@ export interface StartDiscussionInput {
   project: ProjectBrief;
   document: Document;
   proposal: Proposal;
-  request: ProposalDiscussionRequest;
+  request: ServiceDiscussionRequest;
 }
 
 export function startDiscussionRun(deps: EngineDeps, input: StartDiscussionInput): void {
@@ -869,10 +894,18 @@ async function executeDiscussion(
     runService.appendRunEvent(db, run.id, {
       level: 'info',
       message: '执行器开始执行讨论任务（只更新该条提案，不修改文档）',
-      data: { backend: run.backend, provider: run.provider, model: run.model, tier: request.tier },
+      data: {
+        backend: run.backend,
+        provider: run.provider,
+        model: run.model,
+        tier: request.tier,
+        referenceIds: request.referenceIds ?? null,
+        referenceSectionIds: request.referenceSectionIds ?? null,
+      },
     });
 
-    assertProjectAllowsExternalModel(project, run.backend);
+    // 离线 mock provider 不产生外发：secret 项目在 mock 链路下仍可讨论。
+    assertProjectAllowsExternalModel(project, run.provider === 'mock' ? 'mock' : run.backend);
     try {
       maybeInjectFault(config, request.fault, emit);
     } catch (error) {
@@ -881,12 +914,7 @@ async function executeDiscussion(
     }
 
     const registry = createRuntimeRegistry(config);
-    const backend = registry.byId(run.backend);
-    if (!backend) {
-      throw new LlmError('backend_unavailable', `执行器 ${run.backend} 不存在`, {
-        retryable: false,
-      });
-    }
+    const backend = registry.executionBackend(run.backend, run.provider);
     const task: DiscussionTask = {
       type: 'discussion',
       projectName: project.name,
@@ -899,7 +927,11 @@ async function executeDiscussion(
       },
       message: request.message,
       tier: request.tier,
-      references: referencesForProject(db, document.projectId),
+      // P1：讨论同样只注入选中的引用/小节（未传=全部）。
+      references: referencesForProject(db, document.projectId, {
+        referenceIds: request.referenceIds,
+        referenceSectionIds: request.referenceSectionIds,
+      }),
     };
 
     if (runService.findRun(db, run.id)?.status === 'cancelled' || controller.signal.aborted) return;
@@ -941,19 +973,4 @@ async function executeDiscussion(
     runService.clearRunWatchdog(run.id);
     runService.unregisterRunAbort(run.id);
   }
-}
-
-/** 生成 Run 的 provider/model 解析（路由创建 Run 时使用）。 */
-export function resolveRunProviderModel(
-  config: AppConfig,
-  backendId: 'dsh' | 'mock',
-  tier: TierName,
-): { provider: string; model: string } {
-  if (backendId === 'mock') return { provider: 'mock', model: MOCK_MODEL };
-  const registry = createRuntimeRegistry(config);
-  const provider = registry.llmRouter.defaultProvider();
-  return {
-    provider: provider.id,
-    model: registry.llmRouter.modelFor(provider.id, tier),
-  };
 }
